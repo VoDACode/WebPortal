@@ -1,0 +1,29 @@
+{
+    "name": "WebPortal",
+    "version": "0.1.0",
+    "description": "Library from easy create web portal for your project",
+    "keywords": [
+        "web",
+        "portal",
+        "web portal",
+        "web server",
+        "server",
+        "webserver"
+    ],
+    "authors": {
+        "name": "VoDACode",
+        "url": "https://github.com/VoDACode",
+        "email": "vodacode.work@gmail.com"
+    },
+    "headers": [
+        "WebPortal.h",
+        "HtmlNode.h"
+    ],
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/VoDACode/WebPortal.git"
+    },
+    "platforms": "esp8266",
+    "frameworks": "arduino"
+}
