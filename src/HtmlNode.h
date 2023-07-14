@@ -3,8 +3,37 @@
 #include <functional>
 #include <algorithm>
 #include <Arduino.h>
+#include <map>
+#include <ArduinoJson.h>
 
 using namespace std;
+
+#define MAX_JSON_RESPONSE_SIZE 1024*3
+
+class HtmlNode;
+
+typedef void (event_callback_t)(const char *eventName, HtmlNode *node, void *context, void *data);
+
+struct EventData
+{
+    char *eventName;
+    void *data;
+    event_callback_t *callback;
+
+    EventData(const char *eventName, event_callback_t *callback, void *data = NULL)
+    {
+        this->eventName = new char[strlen(eventName) + 1];
+        strcpy(this->eventName, eventName);
+        this->eventName[strlen(eventName)] = '\0';
+        this->data = data;
+        this->callback = callback;
+    }
+
+    ~EventData()
+    {
+        delete[] eventName;
+    }
+};
 
 struct HtmlNodeAttribute
 {
@@ -70,13 +99,20 @@ struct HtmlNodeAttribute
 
 class HtmlNode
 {
+    friend class HtmlNodeContainer;
+
 private:
+    vector<EventData *> events;
     int indexOf(const char *str, char c);
     void removeChar(char *str, int index);
     void toString(char *buffer, int &offset);
+    void generateJsCode(char *buffer, int &offset);
+    int numberSize(unsigned long long number);
     // this parameter true when this node is added to another node
     bool isAdded = false;
-protected:
+
+    unsigned long long id = 0;
+
     char *tag;
     char *innerText;
     bool isSelfClosing;
@@ -84,12 +120,15 @@ protected:
     vector<HtmlNode *> children;
     vector<HtmlNodeAttribute *> attributes;
 
+protected:
+    size_t jsLength();
+
 public:
     HtmlNode(const char *tag, bool isSelfClosing);
     HtmlNode(const HtmlNode &HtmlNode);
     ~HtmlNode();
 
-    HtmlNode* clone();
+    HtmlNode *clone();
 
     char *getTag();
 
@@ -102,7 +141,9 @@ public:
 
     // get/set innerText
     char *getInnerText();
+    String getInnerTextString();
     HtmlNode &setInnerText(const char *innerText);
+    HtmlNode &setInnerText(String innerText);
 
     // add/remove children
     HtmlNode &addChild(HtmlNode *child);
@@ -127,6 +168,41 @@ public:
 
     // toString
     char *toString();
+
+    char *generateJsCode();
+
+    // events
+    void on(const char *eventName, event_callback_t *callback, void *data = NULL);
+    void emit(const char *eventName, void *data);
+    void onClick(event_callback_t *callback, void *data = NULL);
+};
+
+class HtmlNodeContainer
+{
+    // singleton
+private:
+    std::vector<unsigned long long> removedNodes;
+    std::map<unsigned long long, HtmlNode *> addedNodes;
+    std::map<unsigned long long, HtmlNode *> updatedNodes;
+
+    std::map<unsigned long long, HtmlNode *> nodes;
+    unsigned long long lastId;
+    HtmlNodeContainer();
+    HtmlNodeContainer(const HtmlNodeContainer &HtmlNodeContainer);
+    ~HtmlNodeContainer();
+    static HtmlNodeContainer *instance;
+
+public:
+    static HtmlNodeContainer *getInstance();
+    HtmlNode *getNode(unsigned long long id);
+    HtmlNode *addNode(HtmlNode *node);
+    void removeNode(unsigned long long id);
+    void removeAllNodes();
+
+    void updateNode(HtmlNode *node);
+    void addUpdatedNode(HtmlNode *node);
+
+    char *handleUpdatedNodes();
 };
 
 // #region HTML items

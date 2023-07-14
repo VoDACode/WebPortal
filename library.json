@@ -17,7 +17,8 @@
     },
     "headers": [
         "WebPortal.h",
-        "HtmlNode.h"
+        "HtmlNode.h",
+        "HtmlTemplates.h"
     ],
     "license": "MIT",
     "repository": {
@@ -25,5 +26,9 @@
         "url": "https://github.com/VoDACode/WebPortal.git"
     },
     "platforms": "esp8266",
-    "frameworks": "arduino"
+    "frameworks": "arduino",
+    "dependencies": [
+        "links2004/WebSockets@^2.4.1",
+        "bblanchon/ArduinoJson@^6.21.2"
+    ]
 }
