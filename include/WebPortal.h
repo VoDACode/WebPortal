@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "html_templates/HtmlBox.h"
+#include "HtmlBox.h"
 #include "HtmlNode.h"
 #include "HttpClient.h"
 #include <ESP8266WiFi.h>

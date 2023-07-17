@@ -1,5 +1,5 @@
 #pragma once
-#include "../HtmlNode.h"
+#include "HtmlNode.h"
 
 class HtmlBox : public HtmlNode
 {

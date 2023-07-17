@@ -4,12 +4,9 @@
 #include <algorithm>
 #include <Arduino.h>
 #include <map>
-#include <ArduinoJson.h>
 #include <HttpClient.h>
 
 using namespace std;
-
-#define MAX_JSON_RESPONSE_SIZE 1024*3
 
 class HtmlNode;
 
