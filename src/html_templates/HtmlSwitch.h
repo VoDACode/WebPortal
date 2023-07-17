@@ -1,17 +1,19 @@
 #pragma once
 #include "../HtmlNode.h"
 
-class HtmlSwitch : public HtmlNode
+class HtmlSwitch : public CANVASHtmlNode
 {
-    private:
-        String _id;
-        bool _value;
-        String _name;
-        void build();
-        INPUTHtmlNode* _input;
-    public:
-        HtmlSwitch(const char *id, const char *name, bool value);
-        ~HtmlSwitch();
-        void setValue(bool value);
-        bool getValue();
+private:
+    bool _value;
+    void build();
+public:
+    HtmlSwitch(bool value = false);
+    HtmlSwitch(const char *id, bool value = false);
+    ~HtmlSwitch();
+    void setValue(bool value);
+    bool getValue();
+    void onSwitched(event_callback_t *callback, vector<void*>* context);
+
+    const char *getJs();
+    const char *getCss();
 };

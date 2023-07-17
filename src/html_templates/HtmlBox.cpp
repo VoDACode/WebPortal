@@ -16,6 +16,14 @@ HtmlBox::HtmlBox(String title, bool isSubBox, HtmlNode *content, bool isInlineCo
     this->build(content);
 }
 
+HtmlBox::HtmlBox(String title, bool isSubBox, bool isInlineContent) : HtmlNode("div", false)
+{
+    this->_title = title;
+    this->_isSubBox = isSubBox;
+    this->_isInlineContent = isInlineContent;
+    this->build(nullptr);
+}
+
 void HtmlBox::build(HtmlNode *content, vector<char *> contentClassesNames)
 {
     this->addClass("box");
@@ -31,12 +39,12 @@ void HtmlBox::build(HtmlNode *content, vector<char *> contentClassesNames)
     box_header->addClass("box-header");
 
     HtmlNode *titleNode = new HtmlNode("h2", false);
-    this->_titleNode = &titleNode;
+    this->_titleNode = titleNode;
     titleNode->setInnerText(this->_title.c_str());
     box_header->addChild(titleNode);
 
     DIVHtmlNode *contentNode = new DIVHtmlNode();
-    this->_contentNode = &contentNode;
+    this->_contentNode = contentNode;
     sub_div->addChild(contentNode);
     contentNode->addClass("box-content");
     for (auto className : contentClassesNames)
@@ -47,15 +55,31 @@ void HtmlBox::build(HtmlNode *content, vector<char *> contentClassesNames)
     {
         contentNode->addClass("inline");
     }
-    contentNode->addChild(content);
+    if (content != nullptr){
+        contentNode->addChild(content);
+    }
+
+    DIVHtmlNode* box_footer = new DIVHtmlNode();
+    box_footer->addClass("box-footer");
+    this->_footerNode = box_footer;
+    sub_div->addChild(box_footer);
 }
 
 HtmlBox::~HtmlBox()
 {
-    if (this->_titleNode != nullptr)
-        delete this->_titleNode;
-    if (this->_contentNode != nullptr)
-        delete this->_contentNode;
+}
+
+void HtmlBox::addItems(vector<HtmlNode *> items)
+{
+    for (auto item : items)
+    {
+        this->addItem(item);
+    }
+}
+
+void HtmlBox::addItem(HtmlNode *item)
+{
+    this->getContentNode()->addChild(item);
 }
 
 void HtmlBox::setTitle(String title)
@@ -72,10 +96,34 @@ void HtmlBox::setContent(HtmlNode *content)
 
 HtmlNode *HtmlBox::getTitleNode()
 {
-    return *this->_titleNode;
+    return this->_titleNode;
 }
 
 HtmlNode *HtmlBox::getContentNode()
 {
-    return *this->_contentNode;
+    return this->_contentNode;
+}
+
+void HtmlBox::setFooter(HtmlNode *footer)
+{
+    this->getFooterNode()->removeAllChildren();
+    this->getFooterNode()->addChild(footer);
+}
+
+HtmlNode *HtmlBox::getFooterNode()
+{
+    return this->_footerNode;
+}
+
+void HtmlBox::addFooterItems(vector<HtmlNode *> items)
+{
+    for (auto item : items)
+    {
+        this->addFooterItem(item);
+    }
+}
+
+void HtmlBox::addFooterItem(HtmlNode *item)
+{
+    this->getFooterNode()->addChild(item);
 }

@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <map>
 #include <ArduinoJson.h>
+#include <HttpClient.h>
 
 using namespace std;
 
@@ -12,20 +13,20 @@ using namespace std;
 
 class HtmlNode;
 
-typedef void (event_callback_t)(const char *eventName, HtmlNode *node, void *context, void *data);
+typedef void (event_callback_t)(const char *eventName, void* node, vector<void*>* context, void *data);
 
 struct EventData
 {
     char *eventName;
-    void *data;
+    vector<void*>* context;
     event_callback_t *callback;
 
-    EventData(const char *eventName, event_callback_t *callback, void *data = NULL)
+    EventData(const char *eventName, event_callback_t *callback, vector<void*>* context = NULL)
     {
         this->eventName = new char[strlen(eventName) + 1];
         strcpy(this->eventName, eventName);
         this->eventName[strlen(eventName)] = '\0';
-        this->data = data;
+        this->context = context;
         this->callback = callback;
     }
 
@@ -82,6 +83,7 @@ struct HtmlNodeAttribute
         strcpy(buffer + offset, "\"");
         offset++;
     }
+    
     char *toString()
     {
         char *result = new char[this->length() + 1];
@@ -100,14 +102,13 @@ struct HtmlNodeAttribute
 class HtmlNode
 {
     friend class HtmlNodeContainer;
-
+    friend class WebPortal;
 private:
     vector<EventData *> events;
     int indexOf(const char *str, char c);
     void removeChar(char *str, int index);
     void toString(char *buffer, int &offset);
     void generateJsCode(char *buffer, int &offset);
-    int numberSize(unsigned long long number);
     // this parameter true when this node is added to another node
     bool isAdded = false;
 
@@ -120,9 +121,19 @@ private:
     vector<HtmlNode *> children;
     vector<HtmlNodeAttribute *> attributes;
 
-protected:
-    size_t jsLength();
+    bool builded = false;
 
+    void beforeEmit(const char *eventName, vector<void*>* context, void *data);
+
+    void sendCssTo(HttpClient *client);
+
+protected:
+    static int numberSize(unsigned long long number);
+    size_t jsLength();
+    event_callback_t* beforeEmitEventCallback = NULL;
+    // TO DO
+    virtual const char* getJs();
+    virtual const char* getCss();
 public:
     HtmlNode(const char *tag, bool isSelfClosing);
     HtmlNode(const HtmlNode &HtmlNode);
@@ -171,10 +182,13 @@ public:
 
     char *generateJsCode();
 
+    void buildElement();
+
     // events
-    void on(const char *eventName, event_callback_t *callback, void *data = NULL);
+    void on(const char *eventName, event_callback_t *callback, vector<void*>* context = NULL);
     void emit(const char *eventName, void *data);
-    void onClick(event_callback_t *callback, void *data = NULL);
+    virtual void onClick(event_callback_t *callback, vector<void*>* context = NULL);
+    virtual void onChange(event_callback_t *callback, vector<void*>* context = NULL);
 };
 
 class HtmlNodeContainer
@@ -182,7 +196,6 @@ class HtmlNodeContainer
     // singleton
 private:
     std::vector<unsigned long long> removedNodes;
-    std::map<unsigned long long, HtmlNode *> addedNodes;
     std::map<unsigned long long, HtmlNode *> updatedNodes;
 
     std::map<unsigned long long, HtmlNode *> nodes;
@@ -192,6 +205,8 @@ private:
     ~HtmlNodeContainer();
     static HtmlNodeContainer *instance;
 
+    size_t jsonLength();
+
 public:
     static HtmlNodeContainer *getInstance();
     HtmlNode *getNode(unsigned long long id);
@@ -200,7 +215,6 @@ public:
     void removeAllNodes();
 
     void updateNode(HtmlNode *node);
-    void addUpdatedNode(HtmlNode *node);
 
     char *handleUpdatedNodes();
 };
@@ -450,6 +464,16 @@ public:
     int getMaxValue()
     {
         return atoi(this->getAttributeValue("max"));
+    }
+};
+
+class CANVASHtmlNode : public HtmlNode
+{
+public:
+    CANVASHtmlNode() : HtmlNode("canvas", false) {}
+    CANVASHtmlNode(const char *id) : HtmlNode("canvas", false)
+    {
+        this->setId(id);
     }
 };
 

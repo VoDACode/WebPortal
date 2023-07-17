@@ -12,13 +12,16 @@ WebPortal::WebPortal(int port)
     HtmlBox *box = new HtmlBox("", false, content, false);
 
     content->setInnerText("No content");
-    box->addChild(content);
+    box->buildElement();
     this->pageNoContent = box;
     this->page = this->pageNoContent;
 }
 
 WebPortal::~WebPortal()
 {
+    delete this->httpServer;
+    delete this->wsServer;
+    delete this->pageNoContent;
 }
 
 void WebPortal::handle()
@@ -56,6 +59,15 @@ void WebPortal::handle()
         }
     */
     this->wsServer->loop();
+
+    char *response = HtmlNodeContainer::getInstance()->handleUpdatedNodes();
+    if (response != NULL)
+    {
+        this->wsServer->broadcastTXT(response, strlen(response));
+        delete[] response;
+    }
+
+    this->wsServer->loop();
     WiFiClient client = httpServer->accept();
     if (client)
     {
@@ -68,7 +80,6 @@ void WebPortal::handle()
                 break;
             }
         }
-        Serial.println("Client disconnected");
     }
 }
 
@@ -93,19 +104,16 @@ void WebPortal::wsHandler(WebPortal *portal, uint8_t num, WStype_t type, uint8_t
         JsonObject data = doc.as<JsonObject>();
         String event = data["event"].as<String>();
 
-        if(event == "ping"){
+        if (event == "ping")
+        {
             portal->wsServer->sendTXT(num, "{\"status\": 204, \"message\": \"OK\"}");
             break;
         }
 
         unsigned long long appId = data["app-id"].as<unsigned long long>();
         String dataStr = data["data"].as<String>();
-        HtmlNodeContainer::getInstance()->getNode(appId)->emit(event.c_str(), (void*)dataStr.c_str());
-        char* response = HtmlNodeContainer::getInstance()->handleUpdatedNodes();
-        if(response != NULL){
-            portal->wsServer->broadcastTXT(response, strlen(response));
-            delete[] response;
-        }
+        // Serial.printf("Event: %s, app-id: %llu, data: %s\n", event.c_str(), appId, dataStr.c_str());
+        HtmlNodeContainer::getInstance()->getNode(appId)->emit(event.c_str(), (void *)dataStr.c_str());
         break;
     }
     default:
@@ -139,6 +147,9 @@ void WebPortal::clientHandler(HttpClient *client)
         client->send(this->options.customCss.c_str());
         client->send("</style>");
     }
+    client->send("<style>");
+    this->page->sendCssTo(client);
+    client->send("</style>");
 
     // default js
     client->send("<script>");
@@ -149,15 +160,13 @@ void WebPortal::clientHandler(HttpClient *client)
     // body
 
     // set theme
-    client->send(WebPortal::SET_THEME_HTML_PART1);
+    client->send(WebPortal::THEME_HTML_PART_1);
     client->send(this->options.pageTitle.c_str());
-    client->send(WebPortal::SET_THEME_HTML_PART2);
+    client->send(WebPortal::THEME_HTML_PART_2);
 
     // content
     char *htmlContent = this->page->toString();
-    client->send("<main>");
     client->send(htmlContent);
-    client->send("</main>");
     delete[] htmlContent;
 
     // custom js
@@ -170,13 +179,13 @@ void WebPortal::clientHandler(HttpClient *client)
 
     // after load js
     client->send("<script>");
-    char* afterLoadJs = this->page->generateJsCode();
+    char *afterLoadJs = this->page->generateJsCode();
     client->send(afterLoadJs);
     delete[] afterLoadJs;
     client->send("</script>");
 
     client->send("<script>");
-    client->send(WebPortal::SET_THEME_JS);
+    client->send(WebPortal::THEME_JS);
     client->send("</script>");
 
     client->send("</body></html>");
@@ -212,7 +221,7 @@ void WebPortal::setTitle(const char *title)
 
 void WebPortal::setPageTitle(const char *pageTitle)
 {
-    if(pageTitle == nullptr)
+    if (pageTitle == nullptr)
         this->options.pageTitle = String("WebPortal - ") + String(ESP.getChipId());
     else
         this->options.pageTitle = pageTitle;

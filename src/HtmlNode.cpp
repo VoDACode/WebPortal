@@ -149,42 +149,47 @@ HtmlNode &HtmlNode::addClass(const char *className)
     }
     else
     {
-        // concat use char method
-        char *arr = new char[strlen(attribute.value) + strlen(className) + 1];
-        strcpy(arr, attribute.value);
-        strcat(arr, " ");
-        strcat(arr, className);
-        this->setAttribute("class", arr);
-        delete[] arr;
+        String currentValue = String(attribute.value);
+        String newValue = currentValue + " " + String(className);
+        this->setAttribute("class", newValue.c_str());
+
     }
     return *this;
 }
 
-HtmlNode &HtmlNode::removeClass(const char *className)
+HtmlNode& HtmlNode::removeClass(const char* className)
 {
     HtmlNodeAttribute attribute;
     this->getAttribute("class", attribute);
-    if (attribute.name[0] != '\0')
+    if (attribute.name != NULL)
     {
-        char *classes = attribute.value;
-        size_t classNameLength = strlen(className);
-        char *match = strstr(classes, className);
-        while (match != NULL)
+        std::string classes = attribute.value;
+        std::string classToRemove = std::string(className);
+
+        size_t start = classes.find(classToRemove);
+        size_t end = start + classToRemove.length();
+
+        if (start != std::string::npos)
         {
-            memmove(match, match + classNameLength, strlen(match + classNameLength) + 1);
-            match = strstr(classes, className);
+            classes.erase(start, end);
+
+            size_t firstNonSpace = classes.find_first_not_of(' ');
+            size_t lastNonSpace = classes.find_last_not_of(' ');
+            classes = classes.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
+
+            this->setAttribute("class", classes.c_str());
         }
-        this->setAttribute("class", classes);
     }
     return *this;
 }
+
 
 vector<char *> HtmlNode::getClasses()
 {
     vector<char *> result;
     HtmlNodeAttribute attribute;
     this->getAttribute("class", attribute);
-    if (attribute.name[0] != '\0')
+    if (attribute.name != NULL)
     {
         char *classes = attribute.value;
         int index = indexOf(classes, ' ');
@@ -252,10 +257,8 @@ HtmlNode &HtmlNode::setAttribute(const char *name, const char *value)
     {
         if (strcmp(this->attributes[i]->name, name) == 0)
         {
-            delete[] this->attributes[i]->value;
-            this->attributes[i]->value = new char[strlen(value) + 1];
-            strcpy(this->attributes[i]->value, value);
-            this->attributes[i]->value[strlen(value)] = '\0';
+            this->attributes.erase(this->attributes.begin() + i);
+            this->attributes.push_back(new HtmlNodeAttribute(name, value));
             HtmlNodeContainer::getInstance()->updateNode(this);
             return *this;
         }
@@ -317,7 +320,7 @@ HtmlNode &HtmlNode::addChild(HtmlNode *child)
     child->parent = this;
     this->children.push_back(child);
     // !important: add node to container, if node is not from build-in node
-    //HtmlNodeContainer::getInstance()->addUpdatedNode(this);
+    // HtmlNodeContainer::getInstance()->addUpdatedNode(this);
     return *this;
 }
 
@@ -334,7 +337,6 @@ HtmlNode &HtmlNode::removeChild(function<bool(const HtmlNode)> validator)
             break;
         }
     }
-    HtmlNodeContainer::getInstance()->updateNode(this);
     return *this;
 }
 
@@ -422,9 +424,12 @@ size_t HtmlNode::jsLength()
         Example JS result. [INSERT_TO_JS_CODE]:
         window.app.addEvent([this->id],[events[i]->eventName]);
     */
-    size_t length = 0;
+    size_t length = this->getJs() == NULL ? 0 : strlen(this->getJs());
     for (int i = 0; i < events.size(); i++)
     {
+        if(events[i]->eventName[0] == '$'){
+            continue;
+        }
         length += strlen(events[i]->eventName) + strlen("window.app.addEvent(,'');") + this->numberSize(this->id);
     }
     // sub element js length
@@ -504,6 +509,9 @@ void HtmlNode::generateJsCode(char *buffer, int &offset)
 {
     for (int i = 0; i < events.size(); i++)
     {
+        if(events[i]->eventName[0] == '$'){
+            continue;
+        }
         strcpy(buffer + offset, "window.app.addEvent(");
         offset += strlen("window.app.addEvent(");
         strcpy(buffer + offset, String(this->id).c_str());
@@ -515,6 +523,11 @@ void HtmlNode::generateJsCode(char *buffer, int &offset)
         strcpy(buffer + offset, "');");
         offset += strlen("');");
     }
+    if (this->getJs() != NULL)
+    {
+        strcpy(buffer + offset, this->getJs());
+        offset += strlen(this->getJs());
+    }
     for (HtmlNode *child : this->children)
     {
         child->generateJsCode(buffer, offset);
@@ -523,6 +536,7 @@ void HtmlNode::generateJsCode(char *buffer, int &offset)
 
 char *HtmlNode::generateJsCode()
 {
+
     size_t length = this->jsLength();
     char *result = new char[length + 1];
     int offset = 0;
@@ -531,11 +545,51 @@ char *HtmlNode::generateJsCode()
     return result;
 }
 
+void HtmlNode::sendCssTo(HttpClient* client){
+    if(this->getCss() != NULL){
+        client->send(this->getCss());
+    }
+    for (HtmlNode *child : this->children)
+    {
+        child->sendCssTo(client);
+    }
+}
+
+void HtmlNode::buildElement()
+{
+    this->builded = true;
+    for (int i = 0; i < this->children.size(); i++)
+    {
+        this->children[i]->buildElement();
+    }
+}
+
+const char *HtmlNode::getJs()
+{
+    return NULL;
+}
+
+const char *HtmlNode::getCss()
+{
+    return NULL;
+}
+
 // events
 
-void HtmlNode::on(const char *eventName, event_callback_t* callback, void *data)
+void HtmlNode::beforeEmit(const char *eventName, vector<void*>* context, void *data)
 {
-    EventData *eventData = new EventData(eventName, callback, data);
+    for (int i = 0; i < events.size(); i++)
+    {
+        if (strcmp(events[i]->eventName, "$beforeEmitEventCallback") == 0)
+        {
+            events[i]->callback(eventName, this, events[i]->context, data);
+        }
+    }
+}
+
+void HtmlNode::on(const char *eventName, event_callback_t *callback, vector<void*>* context)
+{
+    EventData *eventData = new EventData(eventName, callback, context);
     events.push_back(eventData);
 }
 
@@ -545,14 +599,20 @@ void HtmlNode::emit(const char *eventName, void *data)
     {
         if (strcmp(events[i]->eventName, eventName) == 0)
         {
-            events[i]->callback(events[i]->eventName, this, events[i]->data, data);
+            this->beforeEmit(eventName, events[i]->context, data);
+            events[i]->callback(events[i]->eventName, this, events[i]->context, data);
         }
     }
 }
 
-void HtmlNode::onClick(event_callback_t* callback, void *data)
+void HtmlNode::onClick(event_callback_t *callback, vector<void*>* context)
 {
-    this->on("click", callback, data);
+    this->on("click", callback, context);
+}
+
+void HtmlNode::onChange(event_callback_t *callback, vector<void*>* context)
+{
+    this->on("change", callback, context);
 }
 
 HtmlNodeContainer *HtmlNodeContainer::instance = NULL;
@@ -568,6 +628,40 @@ HtmlNodeContainer::HtmlNodeContainer(const HtmlNodeContainer &HtmlNodeContainer)
 
 HtmlNodeContainer::~HtmlNodeContainer()
 {
+}
+
+size_t HtmlNodeContainer::jsonLength()
+{
+    // strlen("{\"status\":200,\"message\":\"OK\",\"data\":{\"update\":[],\"remove\":[]}}") = 63
+    size_t length = 63;
+    for (int i = 0; i < updatedNodes.size(); i++)
+    {
+        if (updatedNodes[i] == NULL)
+        {
+            continue;
+        }
+        // strlen("{\"app-id\":,\"attributes\":{},\"innerText\":\"\"}") = 43
+        length += 43;
+        length += HtmlNode::numberSize(updatedNodes[i]->id);
+        for (int j = 0; j < updatedNodes[i]->attributes.size(); j++)
+        {
+            // "name":"value",
+            length += strlen(updatedNodes[i]->attributes[j]->name) + strlen(updatedNodes[i]->attributes[j]->value) + 6;
+        }
+        // last comma attribute
+        length--;
+        if (updatedNodes[i]->innerText != NULL)
+        {
+            length += strlen(updatedNodes[i]->innerText);
+        }
+    }
+
+    for (int i = 0; i < removedNodes.size(); i++)
+    {
+        // number + comma
+        length += HtmlNode::numberSize(removedNodes[i]) + 1;
+    }
+    return length;
 }
 
 HtmlNodeContainer *HtmlNodeContainer::getInstance()
@@ -598,10 +692,11 @@ HtmlNode *HtmlNodeContainer::addNode(HtmlNode *node)
 
 void HtmlNodeContainer::removeNode(unsigned long long id)
 {
-    nodes.erase(id);
-    if (addedNodes.find(id) != addedNodes.end())
-        addedNodes.erase(id);
-    removedNodes.push_back(id);
+    if (find(removedNodes.begin(), removedNodes.end(), id) == removedNodes.end())
+    {
+        removedNodes.push_back(id);
+        nodes.erase(id);
+    }
 }
 
 void HtmlNodeContainer::removeAllNodes()
@@ -609,27 +704,35 @@ void HtmlNodeContainer::removeAllNodes()
     for (auto it = nodes.begin(); it != nodes.end(); ++it)
     {
         removedNodes.push_back(it->second->id);
-        delete it->second;
     }
     nodes.clear();
 }
 
 void HtmlNodeContainer::updateNode(HtmlNode *node)
 {
-    updatedNodes[node->id] = node;
-}
-
-void HtmlNodeContainer::addUpdatedNode(HtmlNode *node)
-{
-    addedNodes[node->id] = node;
+    if (node == NULL)
+    {
+        return;
+    }
+    if (node->builded)
+    {
+        if (updatedNodes.find(node->id) == updatedNodes.end())
+        {
+            // remove node from updatedNodes
+            updatedNodes.erase(node->id);
+        }
+        updatedNodes[node->id] = node;
+    }
 }
 
 char *HtmlNodeContainer::handleUpdatedNodes()
 {
-    if (updatedNodes.size() == 0 && removedNodes.size() == 0 && addedNodes.size() == 0)
+    if (updatedNodes.size() == 0 && removedNodes.size() == 0)
     {
         return NULL;
     }
+    Serial.printf("Updated nodes: %d\n", updatedNodes.size());
+    Serial.printf("Removed nodes: %d\n", removedNodes.size());
     // build JSON response like this:
     /*
         {
@@ -661,59 +764,79 @@ char *HtmlNodeContainer::handleUpdatedNodes()
         }
     */
 
-    StaticJsonDocument<MAX_JSON_RESPONSE_SIZE> doc;
-    doc["status"] = 200;
-    doc["message"] = "OK";
-    JsonObject data = doc.createNestedObject("data");
-    JsonArray update = data.createNestedArray("update");
-    JsonArray remove = data.createNestedArray("remove");
-    JsonArray add = data.createNestedArray("add");
+    size_t length = this->jsonLength();
+    char *result = new char[length + 1];
+    int offset = 0;
 
-    for (auto it = updatedNodes.begin(); it != updatedNodes.end(); ++it)
+    strcpy(result + offset, "{\"status\":200,\"message\":\"OK\",\"data\":{\"update\":[");
+    offset += 47;
+
+    for (size_t i = 0; i < updatedNodes.size(); i++)
     {
-        JsonObject obj = update.createNestedObject();
-        obj["app-id"] = it->second->id;
-        JsonObject attributes = obj.createNestedObject("attributes");
-        for (int i = 0; i < it->second->attributes.size(); i++)
-        {
-            attributes[it->second->attributes[i]->name] = it->second->attributes[i]->value;
+        //Serial.printf("Updated node is %s\n", updatedNodes[i] == NULL ? "NULL" : updatedNodes[i]->tag);
+        if (updatedNodes[i] == NULL){
+            continue;
         }
-        if (it->second->innerText != NULL)
+        strcpy(result + offset, "{\"app-id\":");
+        offset += 10;
+        strcpy(result + offset, String(updatedNodes[i]->id).c_str());
+        offset += String(updatedNodes[i]->id).length();
+        strcpy(result + offset, ",\"attributes\":{");
+        offset += 15;
+        for (size_t j = 0; j < updatedNodes[i]->attributes.size(); j++)
         {
-            obj["innerText"] = it->second->innerText;
+            strcpy(result + offset, "\"");
+            offset++;
+            strcpy(result + offset, updatedNodes[i]->attributes[j]->name);
+            offset += strlen(updatedNodes[i]->attributes[j]->name);
+            strcpy(result + offset, "\":\"");
+            offset += 3;
+            strcpy(result + offset, updatedNodes[i]->attributes[j]->value);
+            offset += strlen(updatedNodes[i]->attributes[j]->value);
+            strcpy(result + offset, "\"");
+            offset++;
+            if (j < updatedNodes[i]->attributes.size() - 1)
+            {
+                strcpy(result + offset, ",");
+                offset++;
+            }
+        }
+        strcpy(result + offset, "}");
+        offset++;
+        strcpy(result + offset, ",\"innerText\":\"");
+        offset += 14;
+        if (updatedNodes[i]->innerText != NULL)
+        {
+            strcpy(result + offset, updatedNodes[i]->innerText);
+            offset += strlen(updatedNodes[i]->innerText);
+        }
+        strcpy(result + offset, "\"}");
+        offset += 2;
+        if (i < updatedNodes.size() - 1)
+        {
+            strcpy(result + offset, ",");
+            offset++;
         }
     }
-
-    for (int i = 0; i < removedNodes.size(); i++)
+    strcpy(result + offset, "],\"remove\":[");
+    offset += 12;
+    for (size_t i = 0; i < removedNodes.size(); i++)
     {
-        remove.add(removedNodes[i]);
+        strcpy(result + offset, String(removedNodes[i]).c_str());
+        offset += String(removedNodes[i]).length();
+        if (i < removedNodes.size() - 1)
+        {
+            strcpy(result + offset, ",");
+            offset++;
+        }
     }
+    strcpy(result + offset, "]}}");
+    offset += 3;
 
-    for(int i = 0; i < addedNodes.size(); i++){
-        JsonObject obj = add.createNestedObject();
-        if(addedNodes[i]->parent != NULL)
-            obj["parent"] = addedNodes[i]->parent->id;
-        else
-            obj["parent"] = -1;
-        obj["tag"] = addedNodes[i]->tag;
-        obj["app-id"] = addedNodes[i]->id;
-        JsonObject attributes = obj.createNestedObject("attributes");
-        for (int i = 0; i < addedNodes[i]->attributes.size(); i++)
-        {
-            attributes[addedNodes[i]->attributes[i]->name] = addedNodes[i]->attributes[i]->value;
-        }
-        if (addedNodes[i]->innerText != NULL)
-        {
-            obj["innerText"] = addedNodes[i]->innerText;
-        }
-    }
+    result[length] = '\0';
 
     updatedNodes.clear();
     removedNodes.clear();
-    addedNodes.clear();
 
-    size_t length = measureJson(doc);
-    char *result = new char[length + 1];
-    serializeJson(doc, result, length + 1);
     return result;
 }
