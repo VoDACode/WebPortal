@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.embeddedhtml": "html",
+        "*.bat": "bat",
+        "vector": "cpp"
+    }
+}
