@@ -1,6 +1,6 @@
 {
     "name": "WebPortal",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "Library from easy create web portal for your project",
     "keywords": [
         "web",
@@ -29,8 +29,8 @@
     },
     "platforms": ["espressif8266"],
     "frameworks": "arduino",
-    "dependencies": [
-        "links2004/WebSockets@^2.4.1",
-        "bblanchon/ArduinoJson@^6.21.2"
-    ]
+    "dependencies":{
+        "links2004/WebSockets": "^2.4.1",
+        "bblanchon/ArduinoJson": "^6.21.2"
+    }
 }
