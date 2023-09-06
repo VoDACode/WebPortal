@@ -1,0 +1,8 @@
+.slider {
+    --slider-width: 300px;
+    --slider-height: 50px;
+    width: var(--slider-width);
+    height: var(--slider-height);
+    cursor: e-resize;
+    border-radius: 10px;
+}

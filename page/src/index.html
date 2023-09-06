@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Homium</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-title">
+            <h1 id="title-text">Title</h1>
+        </div>
+        <div class="theme">
+            <div>
+                <span>Dark theme</span>
+            </div>
+            <div class="switch">
+                <input type="checkbox" id="theme-switcher">
+                <label for="theme-switcher"></label>
+            </div>
+        </div>
+    </div>
+    <main>
+        <!--Connection config-->
+        <div class="box">
+            <div>
+                <div class="box-header">
+                    <h2>Security</h2>
+                </div>
+                <div class="box-content inline">
+                    <div class="box sub">
+                        <div>
+                            <div class="box-header">
+                                <h2>Homium connection</h2>
+                            </div>
+                            <div class="box-content">
+                                <form id="homium-connection-form">
+                                    <div class="input-box">
+                                        <label>Host</label>
+                                        <input type="text" id="host-name">
+                                    </div>
+                                    <div class="input-box">
+                                        <label>Port</label>
+                                        <input type="num" id="host-port">
+                                    </div>
+                                    <div class="input-box">
+                                        <label>API key</label>
+                                        <input type="password" id="api-key">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="box-footer">
+                                <button class="accept" id="save-host-settings">Save</button>
+                                <button class="reject" id="cancel-host-settings">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="box sub">
+                        <div>
+                            <div class="box-header">
+                                <h2>Device settings</h2>
+                            </div>
+                            <div class="box-content">
+                                <form id="device-settings-form">
+                                    <div class="input-box">
+                                        <label>Device name</label>
+                                        <input type="text" name="deviceName">
+                                    </div>
+                                    <div class="input-box">
+                                        <label>Login</label>
+                                        <input type="text" name="login">
+                                    </div>
+                                    <div class="input-box">
+                                        <label>Password</label>
+                                        <input type="password" name="password">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="box-footer">
+                                <button class="accept" id="device-settings-save">Save</button>
+                                <button class="reject" id="device-settings-cancel">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!--WiFi config-->
+        <div class="box">
+            <div>
+                <div class="box-header">
+                    <h2>WiFi</h2>
+                </div>
+                <div class="box-content inline">
+                    <div class="box sub">
+                        <div>
+                            <div class="box-header">
+                                <h2>Connection</h2>
+                            </div>
+                            <div class="box-content">
+                                <form id="wifi-connection-form">
+                                    <div>
+                                        <label>Status: </label>
+                                        <label id="connection-status">Connection...</label>
+                                    </div>
+                                    <div class="input-box">
+                                        <label>SSID</label>
+                                        <input type="text" name="ssid">
+                                    </div>
+                                    <div class="input-box">
+                                        <label>Password</label>
+                                        <input type="password" name="password">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="box-footer">
+                                <button class="accept" id="wifi-connection-save">Save</button>
+                                <button class="reject" id="wifi-connection-cancel">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="box sub">
+                        <div>
+                            <div class="box-header">
+                                <h2>Air point mode</h2>
+                            </div>
+                            <div class="box-content">
+                                <form id="art-configure-form">
+                                    <div>
+                                        <label>Status: </label>
+                                        <label id="configure-status">Working...</label>
+                                    </div>
+                                    <div class="input-box">
+                                        <label>SSID</label>
+                                        <input type="text" name="ssid">
+                                    </div>
+                                    <div class="input-box">
+                                        <label>Password</label>
+                                        <input type="password" name="password">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="box-footer">
+                                <button class="accept" id="art-configure-save">Save</button>
+                                <button class="reject" id="art-configure-cancel">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!--Pin settings-->
+        <div class="box">
+            <div>
+                <div class="box-header">
+                    <h2>Pin settings</h2>
+                </div>
+                <div class="box-content" style="width: 100%;">
+                    <button class="accept" id="add-pin-open">Add pin</button>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pin</th>
+                                <th>Mode</th>
+                                <th>Object</th>
+                                <th>Property</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pins-list">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="model-overlay" id="add-pin-model">
+        <div class="model">
+            <div class="model-header">
+                <h2 class="title">Add pin</h2>
+            </div>
+            <div class="model-content">
+                <form id="add-pin-form">
+                    <div class="input-box">
+                        <label>Pin</label>
+                        <select name="pin">
+                            <option disabled selected>Select pin</option>
+                        </select>
+                    </div>
+                    <div class="input-box">
+                        <label>Mode</label>
+                        <select name="mode">
+                            <option disabled selected>Select mode</option>
+                            <option value="INPUT">Input</option>
+                            <option value="OUTPUT">Output</option>
+                        </select>
+                    </div>
+                    <div class="input-box">
+                        <label>Object</label>
+                        <select name="object">
+                            <option disabled selected>Select object</option>
+                        </select>
+                    </div>
+                    <div class="input-box">
+                        <label>Property</label>
+                        <select name="property">
+                            <option disabled selected>Select property</option>
+                        </select>
+                    </div>
+                    <div class="input-box">
+                        <label>Inverted</label>
+                        <div class="switch">
+                            <input type="checkbox" name="inverted" id="invertedPinVal">
+                            <label for="invertedPinVal"></label>
+                        </div>
+                    </div>
+                    <div class="input-box">
+                        <label>Has clock</label>
+                        <div class="switch">
+                            <input type="checkbox" name="hasClock" id="_hasClock">
+                            <label for="_hasClock"></label>
+                        </div>
+                    </div>
+                    <div class="input-box" style="display: none;" id="clock-box">
+                        <label>Clock (ms)</label>
+                        <input type="num" negative="false" float="false" name="clock">
+                    </div>
+                </form>
+            </div>
+            <div class="model-footer">
+                <button class="accept save" disabled id="add-pin-save">Add</button>
+                <button class="reject" close-model="true" id="add-pin-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+
+</html>

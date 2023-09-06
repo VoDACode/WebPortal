@@ -2,17 +2,37 @@
 #include <WebPortal.h>
 #include <HtmlTemplates.h>
 
+// Wifi config
+#define SSID "WiFi SSID"
+#define PASSWORD "WiFi Password"
+
+void connectToWifi()
+{
+  Serial.println("Connecting to WiFi");
+  WiFi.begin(SSID, PASSWORD);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected to the WiFi network");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
 WebPortal webPortal;
 
 HtmlNode *buildPage();
 
 void setup()
 {
+  Serial.begin(9600);
   webPortal.setPageTitle("Base example");
   webPortal.setTitle("WebPortal - Base example");
 
   webPortal.setPage(buildPage());
   webPortal.begin();
+  connectToWifi();
 }
 
 void loop()
@@ -64,8 +84,25 @@ HtmlNode *buildPage()
     switchState->setInnerText(switchNode->getValue() == true ? "ON" : "OFF");
   },new vector<void *>{switchState, switchNode});
 
+  // Slider box
+  HtmlBox *sliderBox = new HtmlBox("Slider", false, false);
+  LABELHtmlNode *sliderLabel = new LABELHtmlNode("Slider:");
+  LABELHtmlNode *sliderValue = new LABELHtmlNode("0");
+  HtmlSlider *slider = new HtmlSlider("test_slider", 0, -500, 500, 5);
+  sliderBox->addItem(sliderLabel);
+  sliderBox->addItem(sliderValue);
+  sliderBox->addItem(slider);
+
+  slider->onChange([](const char *eventName, void *node, vector<void *> *context, void *data){
+    LABELHtmlNode* sliderValue = (LABELHtmlNode*)(*context)[0];
+    HtmlSlider* slider = (HtmlSlider*)(*context)[1];
+    Serial.println(slider->getValue());
+    sliderValue->setInnerText(String(slider->getValue()));
+  },new vector<void *>{sliderValue, slider});
+
   main->addChild(buttonBox);
   main->addChild(switchBox);
+  main->addChild(sliderBox);
   // Important: build the main node
   main->buildElement();
   return main;

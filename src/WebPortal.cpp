@@ -21,7 +21,6 @@ WebPortal::~WebPortal()
 {
     delete this->httpServer;
     delete this->wsServer;
-    delete this->pageNoContent;
 }
 
 void WebPortal::handle()

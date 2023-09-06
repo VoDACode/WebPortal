@@ -1,0 +1,9 @@
+.switch {
+    --switch-width: 35px;
+    --switch-height: 20px;
+    --scale: 2.5;
+    width: calc(var(--switch-width) * var(--scale));
+    height: calc(var(--switch-height) * var(--scale));
+    cursor: pointer;
+    border-radius: 140px;
+}
