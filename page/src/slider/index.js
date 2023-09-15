@@ -11,6 +11,7 @@
     };
     const margin = 1;
     const changeEvent = 'change';
+    const inputEvent = 'input';
     let canvases = document.querySelectorAll('.slider');
     canvases.forEach((canvas) => {
         if (canvas.getContext === undefined) {
@@ -28,6 +29,7 @@
         canvas.min = Number(canvas.attributes.min?.value || 0);
         canvas.step = Number(canvas.attributes.step?.value || 1);
         canvas.value = Number(canvas.attributes.value?.value || 0);
+        canvas.lastValue = canvas.value;
 
         canvas.setAttribute('max', canvas.max);
         canvas.setAttribute('min', canvas.min);
@@ -89,8 +91,10 @@
             // use step
             canvas.value = Math.round(tmpVal / canvas.step) * canvas.step;
             canvas.setAttribute('value', canvas.value);
-
-            //console.log(value);
+            if(canvas.lastValue != canvas.value){
+                canvas.dispatchEvent(new Event(inputEvent));
+                canvas.lastValue = canvas.value;
+            }
         }
 
         canvas.addEventListener('mousedown', (e) => {

@@ -24,6 +24,7 @@ public:
     int getStep();
     
     void onChange(event_callback_t *callback, vector<void*>* context);
+    void onInput(event_callback_t *callback, vector<void*>* context);
 
     const char *getJs();
     const char *getCss();

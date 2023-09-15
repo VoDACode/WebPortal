@@ -134,64 +134,47 @@ HtmlNode &HtmlNode::setId(const char *id)
 
 char *HtmlNode::getId()
 {
-    HtmlNodeAttribute attribute;
-    this->getAttribute("id", attribute);
-    return attribute.value;
+    return this->getAttribute("id");
 }
 
 HtmlNode &HtmlNode::addClass(const char *className)
 {
-    HtmlNodeAttribute attribute;
+    HtmlNodeAttribute *attribute = NULL;
     this->getAttribute("class", attribute);
-    if (attribute.name == NULL)
+    if (attribute == NULL)
     {
         this->setAttribute("class", className);
     }
     else
     {
-        String currentValue = String(attribute.value);
-        String newValue = currentValue + " " + String(className);
-        this->setAttribute("class", newValue.c_str());
-
+        this->setAttribute("class", (String(attribute->value) + " " + String(className)).c_str());
+        delete attribute;
     }
     return *this;
 }
 
-HtmlNode& HtmlNode::removeClass(const char* className)
+HtmlNode &HtmlNode::removeClass(const char *className)
 {
-    HtmlNodeAttribute attribute;
-    this->getAttribute("class", attribute);
-    if (attribute.name != NULL)
+    char *classValue = this->getAttribute("class");
+    if (classValue == NULL)
     {
-        std::string classes = attribute.value;
-        std::string classToRemove = std::string(className);
-
-        size_t start = classes.find(classToRemove);
-        size_t end = start + classToRemove.length();
-
-        if (start != std::string::npos)
-        {
-            classes.erase(start, end);
-
-            size_t firstNonSpace = classes.find_first_not_of(' ');
-            size_t lastNonSpace = classes.find_last_not_of(' ');
-            classes = classes.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
-
-            this->setAttribute("class", classes.c_str());
-        }
+        return *this;
     }
+    String result = String(classValue);
+    result.replace(className, "");
+    result.replace("  ", " ");
+    this->setAttribute("class", result.c_str());
     return *this;
 }
 
-
-vector<char *> HtmlNode::getClasses()
+vector<const char *> HtmlNode::getClasses()
 {
-    vector<char *> result;
-    HtmlNodeAttribute attribute;
+    vector<const char *> result;
+    HtmlNodeAttribute *attribute;
     this->getAttribute("class", attribute);
-    if (attribute.name != NULL)
+    if (attribute != NULL)
     {
-        char *classes = attribute.value;
+        char *classes = attribute->value;
         int index = indexOf(classes, ' ');
         while (index != -1)
         {
@@ -204,6 +187,7 @@ vector<char *> HtmlNode::getClasses()
         {
             result.push_back(token);
         }
+        delete attribute;
     }
     return result;
 }
@@ -257,8 +241,12 @@ HtmlNode &HtmlNode::setAttribute(const char *name, const char *value)
     {
         if (strcmp(this->attributes[i]->name, name) == 0)
         {
-            this->attributes.erase(this->attributes.begin() + i);
-            this->attributes.push_back(new HtmlNodeAttribute(name, value));
+            if (this->attributes[i]->value != NULL)
+                delete[] this->attributes[i]->value;
+            this->attributes[i]->value = new char[strlen(value) + 1];
+            strcpy(this->attributes[i]->value, value);
+            this->attributes[i]->value[strlen(value)] = '\0';
+
             HtmlNodeContainer::getInstance()->updateNode(this);
             return *this;
         }
@@ -275,6 +263,8 @@ HtmlNode &HtmlNode::removeAttribute(const char *name)
         if (strcmp(this->attributes[i]->name, name) == 0)
         {
             HtmlNodeContainer::getInstance()->updateNode(this);
+            if (this->attributes[i] != NULL)
+                delete this->attributes[i];
             this->attributes.erase(this->attributes.begin() + i);
             break;
         }
@@ -282,7 +272,21 @@ HtmlNode &HtmlNode::removeAttribute(const char *name)
     return *this;
 }
 
-char *HtmlNode::getAttributeValue(const char *name)
+HtmlNode &HtmlNode::getAttribute(const char *name, HtmlNodeAttribute *&attribute)
+{
+    for (size_t i = 0; i < this->attributes.size(); i++)
+    {
+        if (strcmp(this->attributes[i]->name, name) == 0)
+        {
+            attribute = new HtmlNodeAttribute(this->attributes[i]->name, this->attributes[i]->value);
+            return *this;
+        }
+    }
+    attribute = NULL;
+    return *this;
+}
+
+char *HtmlNode::getAttribute(const char *name)
 {
     for (size_t i = 0; i < this->attributes.size(); i++)
     {
@@ -292,20 +296,6 @@ char *HtmlNode::getAttributeValue(const char *name)
         }
     }
     return NULL;
-}
-
-HtmlNode &HtmlNode::getAttribute(const char *name, HtmlNodeAttribute &attribute)
-{
-    for (size_t i = 0; i < this->attributes.size(); i++)
-    {
-        if (strcmp(this->attributes[i]->name, name) == 0)
-        {
-            attribute = *this->attributes[i];
-            return *this;
-        }
-    }
-    attribute = HtmlNodeAttribute();
-    return *this;
 }
 
 // add/remove children
@@ -427,7 +417,8 @@ size_t HtmlNode::jsLength()
     size_t length = this->getJs() == NULL ? 0 : strlen(this->getJs());
     for (int i = 0; i < events.size(); i++)
     {
-        if(events[i]->eventName[0] == '$'){
+        if (events[i]->eventName[0] == '$')
+        {
             continue;
         }
         length += strlen(events[i]->eventName) + strlen("window.app.addEvent(,'');") + this->numberSize(this->id);
@@ -509,7 +500,8 @@ void HtmlNode::generateJsCode(char *buffer, int &offset)
 {
     for (int i = 0; i < events.size(); i++)
     {
-        if(events[i]->eventName[0] == '$'){
+        if (events[i]->eventName[0] == '$')
+        {
             continue;
         }
         strcpy(buffer + offset, "window.app.addEvent(");
@@ -545,13 +537,15 @@ char *HtmlNode::generateJsCode()
     return result;
 }
 
-void HtmlNode::sendCssTo(HttpClient* client){
-    if(this->getCss() != NULL){
-        client->send(this->getCss());
+void HtmlNode::sendCssTo(ResponseContext *context)
+{
+    if (this->getCss() != NULL)
+    {
+        context->send(this->getCss());
     }
     for (HtmlNode *child : this->children)
     {
-        child->sendCssTo(client);
+        child->sendCssTo(context);
     }
 }
 
@@ -576,7 +570,7 @@ const char *HtmlNode::getCss()
 
 // events
 
-void HtmlNode::beforeEmit(const char *eventName, vector<void*>* context, void *data)
+void HtmlNode::beforeEmit(const char *eventName, vector<void *> *context, void *data)
 {
     for (int i = 0; i < events.size(); i++)
     {
@@ -587,7 +581,7 @@ void HtmlNode::beforeEmit(const char *eventName, vector<void*>* context, void *d
     }
 }
 
-void HtmlNode::on(const char *eventName, event_callback_t *callback, vector<void*>* context)
+void HtmlNode::on(const char *eventName, event_callback_t *callback, vector<void *> *context)
 {
     EventData *eventData = new EventData(eventName, callback, context);
     events.push_back(eventData);
@@ -605,12 +599,12 @@ void HtmlNode::emit(const char *eventName, void *data)
     }
 }
 
-void HtmlNode::onClick(event_callback_t *callback, vector<void*>* context)
+void HtmlNode::onClick(event_callback_t *callback, vector<void *> *context)
 {
     this->on("click", callback, context);
 }
 
-void HtmlNode::onChange(event_callback_t *callback, vector<void*>* context)
+void HtmlNode::onChange(event_callback_t *callback, vector<void *> *context)
 {
     this->on("change", callback, context);
 }
@@ -731,8 +725,8 @@ char *HtmlNodeContainer::handleUpdatedNodes()
     {
         return NULL;
     }
-    Serial.printf("Updated nodes: %d\n", updatedNodes.size());
-    Serial.printf("Removed nodes: %d\n", removedNodes.size());
+    // Serial.printf("Updated nodes: %d\n", updatedNodes.size());
+    // Serial.printf("Removed nodes: %d\n", removedNodes.size());
     // build JSON response like this:
     /*
         {
@@ -773,8 +767,9 @@ char *HtmlNodeContainer::handleUpdatedNodes()
 
     for (size_t i = 0; i < updatedNodes.size(); i++)
     {
-        //Serial.printf("Updated node is %s\n", updatedNodes[i] == NULL ? "NULL" : updatedNodes[i]->tag);
-        if (updatedNodes[i] == NULL){
+        // Serial.printf("Updated node is %s\n", updatedNodes[i] == NULL ? "NULL" : updatedNodes[i]->tag);
+        if (updatedNodes[i] == NULL)
+        {
             continue;
         }
         strcpy(result + offset, "{\"app-id\":");

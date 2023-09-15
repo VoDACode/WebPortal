@@ -19,23 +19,26 @@ HtmlSwitch::~HtmlSwitch()
 void HtmlSwitch::build()
 {
     this->addClass("switch");
-    if(this->_value)
+    if (this->_value)
         this->addClass("active");
-    this->on("$beforeEmitEventCallback", [](const char *eventName, void *node, vector<void *> *context, void *data) {
+    this->on("$beforeEmitEventCallback", [](const char *eventName, void *node, vector<void *> *context, void *data)
+             {
         if(strcmp(eventName, "change") == 0 || strcmp(eventName, "switched") == 0){
             HtmlSwitch *switchNode = (HtmlSwitch *)node;
             switchNode->setValue(!switchNode->_value);
-        }
-    });
+        } });
 }
 
 void HtmlSwitch::setValue(bool value)
 {
     this->_value = value;
-    if (this->_value)
+    if (this->_value){
         this->addClass("active");
+    }
     else
+    {
         this->removeClass("active");
+    }
 }
 
 void HtmlSwitch::onSwitched(event_callback_t *callback, vector<void *> *context)

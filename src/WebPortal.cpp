@@ -2,8 +2,7 @@
 
 WebPortal::WebPortal(int port)
 {
-    this->httpServer = new WiFiServer(port);
-    this->wsServer = new WebSocketsServer(port + 1);
+    this->httpServer = new WebServer(port);
     this->options.title = "WebPortal - dev by VoDACode";
     this->options.customCss = "";
     this->options.customJs = "";
@@ -15,12 +14,28 @@ WebPortal::WebPortal(int port)
     box->buildElement();
     this->pageNoContent = box;
     this->page = this->pageNoContent;
+
+    this->httpServer->on("/", HttpMethod::GET, [this](HttpContext &context)
+                         { this->handleIndex(&context); });
+
+    this->httpServer->on(
+        "/event", [this](HttpContext &context)
+        {
+            WsRequest *request = parseWsRequest(context.getWebSocket()->getMessage());
+
+            //Serial.printf("Event: %s, app-id: %d, data: %s\n", request->event, request->appId, request->data);
+
+            HtmlNodeContainer::getInstance()->getNode(request->appId)->emit(request->event, (void *)request->data);
+
+            //Serial.println("Event handled");
+            delete request;
+        },
+        true);
 }
 
 WebPortal::~WebPortal()
 {
     delete this->httpServer;
-    delete this->wsServer;
 }
 
 void WebPortal::handle()
@@ -57,78 +72,32 @@ void WebPortal::handle()
             }
         }
     */
-    this->wsServer->loop();
+    this->httpServer->handle();
 
     char *response = HtmlNodeContainer::getInstance()->handleUpdatedNodes();
+
     if (response != NULL)
     {
-        this->wsServer->broadcastTXT(response, strlen(response));
+        this->httpServer->broadcast(response);
         delete[] response;
     }
-
-    this->wsServer->loop();
-    WiFiClient client = httpServer->accept();
-    if (client)
-    {
-        while (client.connected())
-        {
-            if (client.available())
-            {
-                HttpClient httpClient(&client);
-                this->clientHandler(&httpClient);
-                break;
-            }
-        }
-    }
 }
 
-void WebPortal::wsHandler(WebPortal *portal, uint8_t num, WStype_t type, uint8_t *payload, size_t length)
+void WebPortal::handleIndex(HttpContext *context)
 {
-    switch (type)
-    {
-    case WStype_DISCONNECTED: // if the websocket is disconnected
-        Serial.printf("[%u] Disconnected!\n", num);
-        break;
-    case WStype_CONNECTED:
-    {
-        IPAddress ip = portal->wsServer->remoteIP(num);
-        Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-        break;
-    }
-    case WStype_TEXT:
-    {
-        // parse json
-        StaticJsonDocument<200> doc;
-        deserializeJson(doc, payload);
-        JsonObject data = doc.as<JsonObject>();
-        String event = data["event"].as<String>();
-
-        if (event == "ping")
-        {
-            portal->wsServer->sendTXT(num, "{\"status\": 204, \"message\": \"OK\"}");
-            break;
-        }
-
-        unsigned long long appId = data["app-id"].as<unsigned long long>();
-        String dataStr = data["data"].as<String>();
-        // Serial.printf("Event: %s, app-id: %llu, data: %s\n", event.c_str(), appId, dataStr.c_str());
-        HtmlNodeContainer::getInstance()->getNode(appId)->emit(event.c_str(), (void *)dataStr.c_str());
-        break;
-    }
-    default:
-        break;
-    }
-}
-
-void WebPortal::clientHandler(HttpClient *client)
-{
-    client->status(200);
+    auto client = context->getResponse();
+    client->setCode(200);
     client->send("<!DOCTYPE html><html><head>");
     // header
     // default css
+
+#ifdef DYNAMIC_DEVELOPMENT
+    client->send(WebPortal::DEFAULT_CSS);
+#else
     client->send("<style>");
     client->send(WebPortal::DEFAULT_CSS);
     client->send("</style>");
+#endif
 
     // meta
     client->send("<meta charset=\"utf-8\">");
@@ -150,10 +119,14 @@ void WebPortal::clientHandler(HttpClient *client)
     this->page->sendCssTo(client);
     client->send("</style>");
 
-    // default js
+// default js
+#ifdef DYNAMIC_DEVELOPMENT
+    client->send(WebPortal::WS_JS);
+#else
     client->send("<script>");
     client->send(WebPortal::WS_JS);
     client->send("</script>");
+#endif
 
     client->send("</head><body>");
     // body
@@ -183,19 +156,19 @@ void WebPortal::clientHandler(HttpClient *client)
     delete[] afterLoadJs;
     client->send("</script>");
 
+#ifdef DYNAMIC_DEVELOPMENT
+    client->send(WebPortal::THEME_JS);
+#else
     client->send("<script>");
     client->send(WebPortal::THEME_JS);
     client->send("</script>");
+#endif
 
     client->send("</body></html>");
-    client->end();
 }
 
 void WebPortal::begin()
 {
-    this->wsServer->begin();
-    this->wsServer->onEvent([this](uint8_t num, WStype_t type, uint8_t *payload, size_t length)
-                            { WebPortal::wsHandler(this, num, type, payload, length); });
     this->httpServer->begin();
     if (this->page == nullptr)
         this->page = this->pageNoContent;
@@ -232,4 +205,77 @@ void WebPortal::setPage(HtmlNode *page)
         this->page = this->pageNoContent;
     else
         this->page = page;
+}
+
+void WebPortal::intToBytes(int value, char *bytes)
+{
+    // number - 3 bytes (0 - signed, 1 - unsigned)
+    bytes[0] = value >= 0 ? 1 : 0;
+    value = value > 0 ? value : -value;
+    bytes[1] = value & 0xFF;
+    bytes[2] = (value >> 8) & 0xFF;
+}
+
+int WebPortal::bytesToInt(char *bytes)
+{
+    int value = 0;
+    value |= bytes[2] << 8;
+    value |= bytes[1];
+    if (bytes[0] < 0)
+    {
+        value = -value;
+    }
+    return value;
+}
+
+char *WebPortal::request(const char *event, int appId, const char *data)
+{
+    int eventLength = strlen(event);
+    int dataLength = strlen(data);
+    int totalLength = 3 + 3 + eventLength + 3 + dataLength;
+    char *bytes = new char[totalLength];
+    int index = 0;
+
+    // create header
+
+    intToBytes(eventLength, bytes + index);
+    index += 3;
+    intToBytes(dataLength, bytes + index);
+    index += 3;
+
+    // create body
+    memcpy(bytes + index, event, eventLength);
+    index += eventLength;
+    intToBytes(appId, bytes + index);
+    index += 3;
+    memcpy(bytes + index, data, dataLength);
+    index += dataLength;
+
+    return bytes;
+}
+
+WsRequest *WebPortal::parseWsRequest(char *bytes)
+{
+    WsRequest *request = new WsRequest();
+    int index = 0;
+
+    // parse header
+    int eventLength = bytesToInt(bytes + index);
+    index += 3;
+    int dataLength = bytesToInt(bytes + index);
+    index += 3;
+
+    // parse body
+    request->event = new char[eventLength + 1];
+    memcpy(request->event, bytes + index, eventLength);
+    request->event[eventLength] = '\0';
+    index += eventLength;
+    request->appId = bytesToInt(bytes + index);
+    index += 3;
+    request->data = new char[dataLength + 1];
+    memcpy(request->data, bytes + index, dataLength);
+    request->data[dataLength] = '\0';
+    index += dataLength;
+
+    return request;
 }

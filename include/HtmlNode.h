@@ -1,24 +1,24 @@
 #pragma once
+#include <ResponseContext.h>
 #include <vector>
 #include <functional>
 #include <algorithm>
-#include <Arduino.h>
 #include <map>
-#include <HttpClient.h>
+#include <Arduino.h>
 
 using namespace std;
 
 class HtmlNode;
 
-typedef void (event_callback_t)(const char *eventName, void* node, vector<void*>* context, void *data);
+typedef void(event_callback_t)(const char *eventName, void *node, vector<void *> *context, void *data);
 
 struct EventData
 {
     char *eventName;
-    vector<void*>* context;
+    vector<void *> *context;
     event_callback_t *callback;
 
-    EventData(const char *eventName, event_callback_t *callback, vector<void*>* context = NULL)
+    EventData(const char *eventName, event_callback_t *callback, vector<void *> *context = NULL)
     {
         this->eventName = new char[strlen(eventName) + 1];
         strcpy(this->eventName, eventName);
@@ -80,7 +80,7 @@ struct HtmlNodeAttribute
         strcpy(buffer + offset, "\"");
         offset++;
     }
-    
+
     char *toString()
     {
         char *result = new char[this->length() + 1];
@@ -100,6 +100,7 @@ class HtmlNode
 {
     friend class HtmlNodeContainer;
     friend class WebPortal;
+
 private:
     vector<EventData *> events;
     int indexOf(const char *str, char c);
@@ -120,17 +121,18 @@ private:
 
     bool builded = false;
 
-    void beforeEmit(const char *eventName, vector<void*>* context, void *data);
+    void beforeEmit(const char *eventName, vector<void *> *context, void *data);
 
-    void sendCssTo(HttpClient *client);
+    void sendCssTo(ResponseContext *context);
 
 protected:
     static int numberSize(unsigned long long number);
     size_t jsLength();
-    event_callback_t* beforeEmitEventCallback = NULL;
+    event_callback_t *beforeEmitEventCallback = NULL;
     // TO DO
-    virtual const char* getJs();
-    virtual const char* getCss();
+    virtual const char *getJs();
+    virtual const char *getCss();
+
 public:
     HtmlNode(const char *tag, bool isSelfClosing);
     HtmlNode(const HtmlNode &HtmlNode);
@@ -145,7 +147,7 @@ public:
 
     HtmlNode &addClass(const char *className);
     HtmlNode &removeClass(const char *className);
-    vector<char *> getClasses();
+    vector<const char *> getClasses();
 
     // get/set innerText
     char *getInnerText();
@@ -163,8 +165,8 @@ public:
     const vector<HtmlNodeAttribute *> getAttributes();
     HtmlNode &setAttribute(const char *name, const char *value);
     HtmlNode &removeAttribute(const char *name);
-    char *getAttributeValue(const char *name);
-    HtmlNode &getAttribute(const char *name, HtmlNodeAttribute &attribute);
+    HtmlNode &getAttribute(const char *name, HtmlNodeAttribute*& attribute);
+    char* getAttribute(const char *name);
 
     // hasAttribute
     bool hasAttribute(const char *name);
@@ -182,10 +184,10 @@ public:
     void buildElement();
 
     // events
-    void on(const char *eventName, event_callback_t *callback, vector<void*>* context = NULL);
+    void on(const char *eventName, event_callback_t *callback, vector<void *> *context = NULL);
     void emit(const char *eventName, void *data);
-    virtual void onClick(event_callback_t *callback, vector<void*>* context = NULL);
-    virtual void onChange(event_callback_t *callback, vector<void*>* context = NULL);
+    virtual void onClick(event_callback_t *callback, vector<void *> *context = NULL);
+    virtual void onChange(event_callback_t *callback, vector<void *> *context = NULL);
 };
 
 class HtmlNodeContainer
@@ -426,7 +428,7 @@ public:
 
     bool isSupportNegative()
     {
-        return strcmp(this->getAttributeValue("negative"), "true") == 0;
+        return strcmp(this->getAttribute("negative"), "true") == 0;
     }
 
     void supportFloat(bool supportFloat)
@@ -436,7 +438,7 @@ public:
 
     bool isSupportFloat()
     {
-        return strcmp(this->getAttributeValue("float"), "true") == 0;
+        return strcmp(this->getAttribute("float"), "true") == 0;
     }
 
     void setMinValue(int minValue)
@@ -448,7 +450,7 @@ public:
 
     int getMinValue()
     {
-        return atoi(this->getAttributeValue("min"));
+        return atoi(this->getAttribute("min"));
     }
 
     void setMaxValue(int maxValue)
@@ -460,7 +462,7 @@ public:
 
     int getMaxValue()
     {
-        return atoi(this->getAttributeValue("max"));
+        return atoi(this->getAttribute("max"));
     }
 };
 
@@ -632,9 +634,7 @@ public:
 
     char *getFor()
     {
-        HtmlNodeAttribute attr;
-        this->getAttribute("for", attr);
-        return attr.value;
+        return this->getAttribute("for");
     }
 };
 
