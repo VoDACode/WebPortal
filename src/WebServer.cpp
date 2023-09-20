@@ -29,8 +29,8 @@ void WebServer::begin()
 
 void WebServer::handle()
 {
-    Serial.printf("B: %d\n", ESP.getFreeHeap());
-    if(this->server->status() == CLOSED)
+    // Serial.printf("B: %d\n", ESP.getFreeHeap());
+    if (this->server->status() == CLOSED)
     {
         Serial.println("Server closed. Reopening...");
         this->server->begin();
@@ -50,16 +50,16 @@ void WebServer::handle()
         this->handleClient(context);
     }
     this->manageClients();
-    Serial.printf("A: %d\n", ESP.getFreeHeap());
+    // Serial.printf("A: %d\n", ESP.getFreeHeap());
 }
 
 void WebServer::manageClients()
 {
     for (int i = 0; i < this->clients->size(); i++)
     {
-        auto client = this->clients->at(i);
+        HttpContext *client = this->clients->at(i);
         bool deleted = false;
-        if (client == nullptr)
+        if (client == NULL)
         {
             this->clients->erase(this->clients->begin() + i);
             deleted = true;
@@ -76,17 +76,28 @@ void WebServer::manageClients()
         {
             i--;
         }
-        else if(client->isWebsocket())
+        else if (client->isWebsocket())
         {
+            handlingContext = client;
             for (int i = 0; i < this->callbacks.size(); i++)
             {
                 if (this->callbacks[i]->websocket == true && client->getWebSocket()->handle())
                 {
-                    this->callbacks[i]->callback(*client);
+                    for(auto callback : this->callbacks[i]->callbacks){
+                        callback(*client);
+                        if(client->getResponse()->isEnded()){
+                            break;
+                        }
+                    }
+                    if (client->getResponse()->isEnded())
+                    {
+                        break;
+                    }
                 }
             }
         }
     }
+    handlingContext = nullptr;
 }
 
 void WebServer::handleClient(HttpContext *context)
@@ -94,22 +105,36 @@ void WebServer::handleClient(HttpContext *context)
     bool found = false;
     for (int i = 0; i < this->callbacks.size(); i++)
     {
+        if(context->getClient()->connected() == false){
+            break;
+        }
         if (this->matchPath(context->getRequest()->getPath(), this->callbacks[i]->path) && this->matchMethod(context->getRequest()->getMethod(), this->callbacks[i]->method))
         {
             if (this->callbacks[i]->websocket == false && context->isWebsocket() == false)
             {
-                this->callbacks[i]->callback(*context);
+                found = true;
+                this->handlingContext = context;
+                
+                for(auto callback : this->callbacks[i]->callbacks){
+                    callback(*context);
+                    if(context->getResponse()->isEnded()){
+                        break;
+                    }
+                }
+
                 if (!context->getResponse()->isEventSource())
                 {
                     context->getResponse()->end();
                 }
-                found = true;
+                Serial.println("HTTP request handled");
             }
             else if (this->callbacks[i]->websocket == true && context->isWebsocket() == true)
             {
+                found = true;
+                this->handlingContext = context;
                 context->getWebSocket()->sendHeader();
                 context->getWebSocket()->setReadOnly(this->callbacks[i]->webSocketReadOnly);
-                found = true;
+                Serial.println("Websocket connected");
             }
         }
     }
@@ -120,22 +145,73 @@ void WebServer::handleClient(HttpContext *context)
         context->getResponse()->send("Not found");
         context->getResponse()->end();
     }
+    this->handlingContext = nullptr;
 }
 
-void WebServer::on(const char *path, HttpMethod method, HttpHandleCallback callback, bool websocket, bool webSocketReadOnly)
+void WebServer::onWs(const char *path, HttpHandleCallback callback, bool webSocketReadOnly)
 {
     HandleRecord *record = new HandleRecord();
     record->path = path;
-    record->method = method;
-    record->callback = callback;
-    record->websocket = websocket;
+    record->method = HttpMethod::GET;
+    record->callbacks.push_back(callback);
+    record->websocket = true;
     record->webSocketReadOnly = webSocketReadOnly;
     this->callbacks.push_back(record);
 }
 
-void WebServer::on(const char *path, HttpHandleCallback callback, bool websocket, bool webSocketReadOnly)
+void WebServer::on(const char *path, HttpMethod method, HttpHandleCallback callback){
+    this->on(path, method, {callback});
+}
+
+void WebServer::on(const char *path, HttpMethod method, std::initializer_list<HttpHandleCallback> callbacks)
 {
-    this->on(path, HttpMethod::ANY, callback, websocket, webSocketReadOnly);
+    HandleRecord *record = new HandleRecord();
+    record->path = path;
+    record->method = method;
+
+    for (auto callback : callbacks)
+    {
+        record->callbacks.push_back(callback);
+    }
+
+    record->websocket = false;
+    record->webSocketReadOnly = false;
+    this->callbacks.push_back(record);
+}
+
+void WebServer::requestAuthentication(const char* username, const char* password)
+{
+    HttpContext *context = this->handlingContext;
+    
+    String auth = context->getRequest()->getHeader("Authorization").c_str();
+    Serial.printf("Authorization: %s\n", auth.c_str());
+
+    if(auth == "" || (millis() - this->lastAuthorizationActivity) > SESSION_LIFETIME){
+        context->getResponse()->unauthorized();
+        return;
+    }
+
+    String realm = auth.substring(0, auth.indexOf(' '));
+
+    if(realm == "Basic"){
+        
+        auth.replace("Basic ", "");
+        if(rbase64.decode(auth) != RBASE64_STATUS_OK) {
+            context->getResponse()->unauthorized();
+            return;
+        }
+
+        String decoded = rbase64.result();
+
+        int colonIndex = decoded.indexOf(':');
+        String decodedUsername = decoded.substring(0, colonIndex);
+        String decodedPassword = decoded.substring(colonIndex + 1);
+        if(decodedUsername == username && decodedPassword == password){
+            this->lastAuthorizationActivity = millis();
+            return;
+        }
+    }
+    context->getResponse()->unauthorized();
 }
 
 int WebServer::getClientCount()

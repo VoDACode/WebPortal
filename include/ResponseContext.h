@@ -6,7 +6,6 @@ class ResponseContext
 {
 protected:
     friend class WebServer;
-    void end();
 private:
     WiFiClient *client = nullptr;
     std::map<const char *, const char *> headers;
@@ -15,6 +14,7 @@ private:
     int step = 0;
 
     bool eventSource = false;
+    bool ended = false;
 
     void sendHeader();
     void sendBody(const char *body);
@@ -30,6 +30,11 @@ public:
     void send();
     void send(const char *body);
     void send(const char *body, int code);
+
+    void end();
+    bool isEnded();
+
+    void unauthorized(const char *message = "Unauthorized");
 
     void setEventSource();
     void sendEvent(const char *event, const char *data);

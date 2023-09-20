@@ -54,6 +54,13 @@
         "utility": "cpp",
         "initializer_list": "cpp",
         "stdexcept": "cpp",
-        "cinttypes": "cpp"
-    }
+        "cinttypes": "cpp",
+        "fstream": "cpp",
+        "iomanip": "cpp",
+        "iostream": "cpp",
+        "sstream": "cpp"
+    },
+    "cSpell.words": [
+        "rbase"
+    ]
 }

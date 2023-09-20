@@ -52,7 +52,21 @@ void ResponseContext::sendHeader()
     this->client->print("HTTP/1.1 ");
     this->client->print(this->code);
     this->client->print(" ");
-    this->client->print(this->code);
+    if(this->code == 200){
+        this->client->print("OK");
+    }
+    else if(this->code == 401){
+        this->client->print("Unauthorized");
+    }
+    else if(this->code == 404){
+        this->client->print("Not Found");
+    }
+    else if(this->code == 500){
+        this->client->print("Internal Server Error");
+    }
+    else{
+        this->client->print(this->code);
+    }
     this->client->print("\r\n");
     for (auto it = this->headers.begin(); it != this->headers.end(); it++)
     {
@@ -74,6 +88,7 @@ void ResponseContext::sendBody(const char *body)
 
 void ResponseContext::end()
 {
+    this->ended = true;
     if(step == 0){
         this->sendHeader();
         step = 1;
@@ -111,4 +126,18 @@ void ResponseContext::sendEvent(const char *event, const char *data)
 bool ResponseContext::isEventSource()
 {
     return this->eventSource;
+}
+
+bool ResponseContext::isEnded()
+{
+    return this->ended;
+}
+
+void ResponseContext::unauthorized(const char *message)
+{
+    this->setCode(401);
+    this->setHeader("WWW-Authenticate", "Basic realm=\"Secure Area\"");
+    this->setHeader("Content-Type", "text/plain");
+    this->send(message);
+    this->end();
 }

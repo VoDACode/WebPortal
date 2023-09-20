@@ -1,7 +1,9 @@
 #pragma once
 #include "RequestContext.h"
 #include <Hash.h>
-#include <base64.h>
+#include "ESP8266WiFi.h"
+#include "rBase64.h"
+#include "Hash.h"
 
 class WebSocketContext
 {

@@ -4,6 +4,7 @@
 #include "HtmlNode.h"
 #include <ESP8266WiFi.h>
 #include <WebServer.h>
+#include <ArduinoOTA.h>
 
 using namespace std;
 
@@ -46,6 +47,9 @@ private:
 	HtmlNode *page;
 	HtmlNode *pageNoContent;
 	void handleIndex(HttpContext *client);
+	void handleConfig(HttpContext *client);
+
+	bool otaEnabled = false;
 
 protected:
 	void intToBytes(int value, char *bytes);
@@ -80,4 +84,9 @@ public:
 	void setCustomJs(const char *customJs);
 	void setPageTitle(const char *pageTitle);
 	void setPage(HtmlNode *page);
+
+	void setupOTA(String password);
+	void setupOTA(String password, int port);
+
+	int getVersion();
 };

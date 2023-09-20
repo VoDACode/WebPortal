@@ -15,22 +15,42 @@ WebPortal::WebPortal(int port)
     this->pageNoContent = box;
     this->page = this->pageNoContent;
 
-    this->httpServer->on("/", HttpMethod::GET, [this](HttpContext &context)
-                         { this->handleIndex(&context); });
+    this->httpServer->on(
+        "/", 
+        HttpMethod::GET,
+        [this](HttpContext &context)
+        {
+            this->handleIndex(&context);
+        }
+    );
 
     this->httpServer->on(
-        "/event", [this](HttpContext &context)
+        "/config",
+        HttpMethod::GET,
+        {
+            [this](HttpContext &context)
+            {
+                this->httpServer->requestAuthentication("admin", "admin");
+            },
+            [this](HttpContext &context)
+            {
+                this->handleConfig(&context);
+            }
+        }
+    );
+
+    this->httpServer->onWs(
+        "/event", 
+        [this](HttpContext &context)
         {
             WsRequest *request = parseWsRequest(context.getWebSocket()->getMessage());
-
             //Serial.printf("Event: %s, app-id: %d, data: %s\n", request->event, request->appId, request->data);
 
             HtmlNodeContainer::getInstance()->getNode(request->appId)->emit(request->event, (void *)request->data);
-
             //Serial.println("Event handled");
-            delete request;
-        },
-        true);
+            delete request; 
+        }
+    );
 }
 
 WebPortal::~WebPortal()
@@ -40,38 +60,6 @@ WebPortal::~WebPortal()
 
 void WebPortal::handle()
 {
-    // Handle ws api request here. Path: /ws
-    // After handle api request, return JSON response.
-    /*
-        Example response:
-        {
-            "status": 200,
-            "message": "OK",
-            "data": {
-                "update": [
-                    {
-                        "app-id": 1,
-                        "attributes": {
-                            "class": "label label-success"
-                        },
-                        "innerText": "Click: 1"
-                    }
-                ],
-                "remove": [],   // list of app-id
-                "add": [
-                    {
-                        "parent": 1,
-                        "tag": "div",
-                        "app-id": 2,
-                        "attributes": {
-                            "class": "label label-success"
-                        },
-                        "innerText": "New label"
-                    }
-                ]
-            }
-        }
-    */
     this->httpServer->handle();
 
     char *response = HtmlNodeContainer::getInstance()->handleUpdatedNodes();
@@ -80,6 +68,10 @@ void WebPortal::handle()
     {
         this->httpServer->broadcast(response);
         delete[] response;
+    }
+    if (this->otaEnabled)
+    {
+        ArduinoOTA.handle();
     }
 }
 
@@ -165,6 +157,23 @@ void WebPortal::handleIndex(HttpContext *context)
 #endif
 
     client->send("</body></html>");
+}
+
+void WebPortal::handleConfig(HttpContext *context)
+{
+    auto response = context->getResponse();
+
+    response->setCode(200);
+    response->setHeader("Content-Type", "application/json");
+    response->send("{ \"version\": ");
+    response->send(String(this->getVersion()).c_str());
+    response->send(", \"title\": \"");
+    response->send(this->options.title.c_str());
+    response->send("\", \"page-title\": \"");
+    response->send(this->options.pageTitle.c_str());
+    response->send("\", \"ota\": { \"enabled\": ");
+    response->send(this->otaEnabled ? "true" : "false");
+    response->send(" } }");
 }
 
 void WebPortal::begin()
@@ -278,4 +287,22 @@ WsRequest *WebPortal::parseWsRequest(char *bytes)
     index += dataLength;
 
     return request;
+}
+
+void WebPortal::setupOTA(String password)
+{
+    this->setupOTA(password, 8266);
+}
+
+void WebPortal::setupOTA(String password, int port)
+{
+    this->otaEnabled = true;
+    ArduinoOTA.setHostname((String("webportal-") + String(ESP.getChipId())).c_str());
+    ArduinoOTA.setPassword(password.c_str());
+    ArduinoOTA.setPort(port);
+    ArduinoOTA.begin();
+}
+
+int WebPortal::getVersion(){
+    return 131;
 }

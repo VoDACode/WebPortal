@@ -5,25 +5,7 @@ RequestContext::RequestContext(WiFiClient *client)
     this->client = client;
     this->websocket = false;
 
-    // fix request parsing
-
-    string header = "";
-    header.reserve(1024);
-    while (this->client->connected())
-    {
-        if (this->client->available())
-        {
-            char c = this->client->read();
-            header += c;
-            if (header.length() > 4)
-            {
-                if (header.substr(header.length() - 4) == "\r\n\r\n")
-                {
-                    break;
-                }
-            }
-        }
-    }
+    string header = this->readHeader();
 
     int firstLineEnd = this->parsePathAndMethod(header);
     // this->parseQueryParameters();
@@ -65,6 +47,10 @@ char *RequestContext::getBody()
 
 string RequestContext::getHeader(string key)
 {
+    if (this->headers.find(key) == this->headers.end())
+    {
+        return "";
+    }
     return this->headers[key];
 }
 
@@ -73,7 +59,7 @@ string RequestContext::getQueryParameter(string key)
     return this->queryParameters[key];
 }
 
-const char* RequestContext::getPath()
+const char *RequestContext::getPath()
 {
     return this->path;
 }
@@ -206,4 +192,27 @@ void RequestContext::parseBody()
         }
     }
     this->body[bodyLength] = '\0';
+}
+
+string RequestContext::readHeader()
+{
+    string header = "";
+    header.reserve(1024);
+    while (this->client->connected())
+    {
+        if (this->client->available())
+        {
+            char c = this->client->read();
+            header += c;
+            if (header.length() > 4)
+            {
+                if (header.substr(header.length() - 4) == "\r\n\r\n")
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    return header;
 }

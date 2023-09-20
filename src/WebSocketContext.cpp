@@ -36,15 +36,18 @@ String WebSocketContext::generateAcceptKey(const char *clientKey)
     SHA1Update(&ctx, (const unsigned char *)clientKey.c_str(), clientKey.length());
     SHA1Final(&sha1HashBin[0], &ctx);
 #endif
-
-    String key = base64::encode(sha1HashBin, 20);
-    key.trim();
-    return key;
+    if (rbase64.encode(sha1HashBin, 20) == RBASE64_STATUS_OK)
+    {
+        String key = rbase64.result();
+        key.trim();
+        return key;
+    }
+    return "";
 }
 
 bool WebSocketContext::handle()
 {
-    if(this->lastMessage != NULL)
+    if (this->lastMessage != NULL)
     {
         delete[] this->lastMessage;
         this->lastMessage = NULL;

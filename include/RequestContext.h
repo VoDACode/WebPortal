@@ -29,6 +29,8 @@ private:
     char* path;
     HttpMethod method;
     bool websocket = false;
+
+    string readHeader();
     int parsePathAndMethod(string header);
     void parseQueryParameters();
     void parseHeader(string header, int firstLineEnd);
