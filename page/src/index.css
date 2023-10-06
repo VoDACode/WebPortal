@@ -502,6 +502,7 @@ td {
 }
 
 table {
+    display: inline-table;
     border-collapse: collapse;
     border-spacing: 0 1em;
     width: 100%;
