@@ -11,6 +11,7 @@
     --main-font: 'Roboto', sans-serif;
     --border-color: #e0e0e0;
     --input-min-width: 270px;
+    --main-bg-color: #f5f5f5;
 }
 
 .light {
@@ -54,13 +55,37 @@
 
 main {
     position: absolute;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    top: 50px;
+    display: inline-block;
+    width: 60%;
+    top: 60px;
+    left: 50%;
+    transform: translate(-50%, 0);
+    margin: 0;
+    padding: 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
 }
+
+main>* {
+    display: inline-flex;
+    padding: 10px;
+    border: solid 1px var(--border-color);
+    border-radius: 5px !important;
+    margin: 3px;
+    vertical-align: middle;
+    min-height: 60px;
+    text-align: center;
+    align-content: center;
+    align-items: center;
+}
+
+@media screen and (max-width: 700px) {
+    main {
+        width: 100%;
+        top: 110px;
+    }
+}
+
 
 select {
     border: 1px solid var(--input-border);
@@ -311,7 +336,8 @@ input[type="range"]::-ms-track {
 }
 
 button {
-    padding: 10px;
+    min-height: fit-content !important;
+    padding: 10px !important;
     border: none;
     border-radius: 5px;
     font-size: 16px;
@@ -371,6 +397,10 @@ button.reject:not(:disabled):hover {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+}
+
+main > .box>div {
+    border: none !important;
 }
 
 .box {
@@ -472,7 +502,58 @@ td {
 }
 
 table {
-    border-collapse: separate;
+    border-collapse: collapse;
     border-spacing: 0 1em;
     width: 100%;
+    min-width: 350px;
+}
+
+table>thead>tr>th {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+table>tbody>tr>td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--box-background-color);
+    min-width: 100px;
+}
+
+@media screen and (max-width: 512px) {
+    table>tbody>tr>td {
+        min-width: fit-content;
+    }
+    table{
+        min-width: fit-content;
+    }
+}
+
+.stack {
+    display: inline-flex;
+    flex-direction: column !important;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    margin: 10px;
+    background-color: var(--box-background-color);
+    padding: 5px;
+    border-radius: 5px;
+    max-width: 750px;
+    min-width: 350px;
+}
+
+.stack>* {
+    margin: 5px;
+}
+
+.stack.stack-horizontal {
+    flex-direction: row !important;
+}
+
+.stack.auto-size {
+    width: fit-content;
+    height: fit-content;
+    min-width: fit-content;
 }

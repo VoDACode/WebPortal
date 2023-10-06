@@ -356,12 +356,6 @@ public:
     LIHtmlNode() : HtmlNode("li", false) {}
 };
 
-class TABLEHtmlNode : public HtmlNode
-{
-public:
-    TABLEHtmlNode() : HtmlNode("table", false) {}
-};
-
 class THEADHtmlNode : public HtmlNode
 {
 public:
@@ -390,6 +384,42 @@ class TDHtmlNode : public HtmlNode
 {
 public:
     TDHtmlNode() : HtmlNode("td", false) {}
+};
+
+class TABLEHtmlNode : public HtmlNode
+{
+private:
+    THEADHtmlNode *thead = new THEADHtmlNode();
+    TBODYHtmlNode *tbody = new TBODYHtmlNode();
+public:
+    TABLEHtmlNode() : HtmlNode("table", false) {
+        this->addChild(this->thead);
+        this->addChild(this->tbody);
+    }
+
+    void addRow(std::initializer_list<HtmlNode *> content)
+    {
+        TRHtmlNode *row = new TRHtmlNode();
+        for (HtmlNode *node : content)
+        {
+            TDHtmlNode *td = new TDHtmlNode();
+            td->addChild(node);
+            row->addChild(td);
+        }
+        tbody->addChild(row);
+    }
+
+    void addHeader(std::initializer_list<HtmlNode *> content)
+    {
+        TRHtmlNode *row = new TRHtmlNode();
+        for (HtmlNode *node : content)
+        {
+            THHtmlNode *th = new THHtmlNode();
+            th->addChild(node);
+            row->addChild(th);
+        }
+        thead->addChild(row);
+    }
 };
 
 class FORMHtmlNode : public HtmlNode
