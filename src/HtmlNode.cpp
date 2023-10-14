@@ -408,29 +408,6 @@ size_t HtmlNode::length()
     return length;
 }
 
-size_t HtmlNode::jsLength()
-{
-    /*
-        Example JS result. [INSERT_TO_JS_CODE]:
-        window.app.addEvent([this->id],[events[i]->eventName]);
-    */
-    size_t length = this->getJs() == NULL ? 0 : strlen(this->getJs());
-    for (int i = 0; i < events.size(); i++)
-    {
-        if (events[i]->eventName[0] == '$')
-        {
-            continue;
-        }
-        length += strlen(events[i]->eventName) + strlen("window.app.addEvent(,'');") + this->numberSize(this->id);
-    }
-    // sub element js length
-    for (HtmlNode *child : this->children)
-    {
-        length += child->jsLength();
-    }
-    return length;
-}
-// toString
 
 void HtmlNode::toString(char *buffer, int &offset)
 {
@@ -496,7 +473,7 @@ char *HtmlNode::toString()
     return result;
 }
 
-void HtmlNode::generateJsCode(char *buffer, int &offset)
+void HtmlNode::sendJsTo(ResponseContext *context)
 {
     for (int i = 0; i < events.size(); i++)
     {
@@ -504,44 +481,68 @@ void HtmlNode::generateJsCode(char *buffer, int &offset)
         {
             continue;
         }
-        strcpy(buffer + offset, "window.app.addEvent(");
-        offset += strlen("window.app.addEvent(");
-        strcpy(buffer + offset, String(this->id).c_str());
-        offset += String(this->id).length();
-        strcpy(buffer + offset, ",'");
-        offset += strlen(",'");
-        strcpy(buffer + offset, events[i]->eventName);
-        offset += strlen(events[i]->eventName);
-        strcpy(buffer + offset, "');");
-        offset += strlen("');");
+        context->send("window.app.addEvent(");
+        context->send(String(this->id).c_str());
+        context->send(",'");
+        context->send(events[i]->eventName);
+        context->send("');");
     }
-    if (this->getJs() != NULL)
+    if (this->hasJsCode)
     {
-        strcpy(buffer + offset, this->getJs());
-        offset += strlen(this->getJs());
+        context->sendFileContent((COMPONENTS_PATH + String(this->componentName()) + JS_EXT).c_str());
     }
     for (HtmlNode *child : this->children)
     {
-        child->generateJsCode(buffer, offset);
+        child->sendJsTo(context);
     }
 }
 
-char *HtmlNode::generateJsCode()
+void HtmlNode::sendHtmlTo(ResponseContext *context)
 {
+    context->send(("<" + String(this->tag)).c_str());
+    bool hasAttributes = false;
+    if (this->attributes.size() > 0)
+    {
+        context->send(" ");
+    }
+    for (HtmlNodeAttribute *attribute : this->attributes)
+    {
+        if (!hasAttributes)
+        {
+            hasAttributes = true;
+        }
+        else
+        {
+            context->send(" ");
+        }
+        attribute->sendTo(context);
+    }
+    if (this->isSelfClosing)
+    {
+        context->send("/>");
+        return;
+    }
+    else
+    {
+        context->send(">");
+    }
 
-    size_t length = this->jsLength();
-    char *result = new char[length + 1];
-    int offset = 0;
-    this->generateJsCode(result, offset);
-    result[length] = '\0';
-    return result;
+    if (this->innerText != NULL)
+    {
+        context->send(this->innerText);
+    }
+    for (HtmlNode *child : this->children)
+    {
+        child->sendHtmlTo(context);
+    }
+    context->send(("</" + String(this->tag) + ">").c_str());
 }
 
 void HtmlNode::sendCssTo(ResponseContext *context)
 {
-    if (this->getCss() != NULL)
+    if (this->hasCssCode)
     {
-        context->send(this->getCss());
+        context->sendFileContent((COMPONENTS_PATH + String(this->componentName()) + CSS_EXT).c_str());
     }
     for (HtmlNode *child : this->children)
     {
@@ -558,14 +559,35 @@ void HtmlNode::buildElement()
     }
 }
 
-const char *HtmlNode::getJs()
+const char *HtmlNode::componentName()
 {
     return NULL;
 }
 
-const char *HtmlNode::getCss()
-{
-    return NULL;
+char* HtmlNode::readFile(const char* filename){
+    File file = LittleFS.open(filename, "r");
+    if(!file)
+    {
+        Serial.printf("File '%s' not found\n", filename);
+        return NULL;
+    }
+    char* content = new char[file.size() + 1];
+    file.readBytes(content, file.size());
+    content[file.size()] = '\0';
+    file.close();
+    return content;
+}
+
+int HtmlNode::getFileSize(const char* filename){
+    File file = LittleFS.open(filename, "r");
+    if(!file)
+    {
+        Serial.printf("File '%s' not found\n", filename);
+        return 0;
+    }
+    int size = file.size();
+    file.close();
+    return size;
 }
 
 // events

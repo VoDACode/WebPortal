@@ -89,6 +89,11 @@ struct HtmlNodeAttribute
         return result;
     }
 
+    void sendTo(ResponseContext *context)
+    {
+        context->send(((this->name != NULL ? this->name : "") + String("=\"") + (this->value != NULL ? this->value : "") + "\"").c_str());
+    }
+
     size_t length()
     {
         // attribute name + = + " + attribute value + "
@@ -106,7 +111,6 @@ private:
     int indexOf(const char *str, char c);
     void removeChar(char *str, int index);
     void toString(char *buffer, int &offset);
-    void generateJsCode(char *buffer, int &offset);
     // this parameter true when this node is added to another node
     bool isAdded = false;
 
@@ -124,14 +128,20 @@ private:
     void beforeEmit(const char *eventName, vector<void *> *context, void *data);
 
     void sendCssTo(ResponseContext *context);
+    void sendJsTo(ResponseContext *context);
+    void sendHtmlTo(ResponseContext *context);
 
 protected:
     static int numberSize(unsigned long long number);
-    size_t jsLength();
     event_callback_t *beforeEmitEventCallback = NULL;
-    // TO DO
-    virtual const char *getJs();
-    virtual const char *getCss();
+    
+    bool hasJsCode = false;
+    bool hasCssCode = false;
+    
+    virtual const char *componentName();
+
+    char* readFile(const char* filename);
+    int getFileSize(const char* filename);
 
 public:
     HtmlNode(const char *tag, bool isSelfClosing);
@@ -178,8 +188,6 @@ public:
 
     // toString
     char *toString();
-
-    char *generateJsCode();
 
     void buildElement();
 

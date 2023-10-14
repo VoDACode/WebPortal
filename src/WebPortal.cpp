@@ -2,6 +2,7 @@
 
 WebPortal::WebPortal(int port)
 {
+    LittleFS.begin();
     this->httpServer = new WebServer(port);
     this->options.title = "WebPortal - dev by VoDACode";
     this->options.customCss = "";
@@ -16,45 +17,41 @@ WebPortal::WebPortal(int port)
     this->page = this->pageNoContent;
 
     this->httpServer->on(
-        "/", 
+        "/",
         HttpMethod::GET,
         [this](HttpContext &context)
         {
             this->handleIndex(&context);
-        }
-    );
+        });
 
     this->httpServer->on(
         "/config",
         HttpMethod::GET,
-        {
-            [this](HttpContext &context)
-            {
-                this->httpServer->requestAuthentication("admin", "admin");
-            },
-            [this](HttpContext &context)
-            {
-                this->handleConfig(&context);
-            }
-        }
-    );
+        {[this](HttpContext &context)
+         {
+             this->httpServer->requestAuthentication("admin", "admin");
+         },
+         [this](HttpContext &context)
+         {
+             this->handleConfig(&context);
+         }});
 
     this->httpServer->onWs(
-        "/event", 
+        "/event",
         [this](HttpContext &context)
         {
             WsRequest *request = parseWsRequest(context.getWebSocket()->getMessage());
-            //Serial.printf("Event: %s, app-id: %d, data: %s\n", request->event, request->appId, request->data);
+            // Serial.printf("Event: %s, app-id: %d, data: %s\n", request->event, request->appId, request->data);
 
             HtmlNodeContainer::getInstance()->getNode(request->appId)->emit(request->event, (void *)request->data);
-            //Serial.println("Event handled");
-            delete request; 
-        }
-    );
+            // Serial.println("Event handled");
+            delete request;
+        });
 }
 
 WebPortal::~WebPortal()
 {
+    LittleFS.end();
     delete this->httpServer;
 }
 
@@ -87,7 +84,7 @@ void WebPortal::handleIndex(HttpContext *context)
     client->send(WebPortal::DEFAULT_CSS);
 #else
     client->send("<style>");
-    client->send(WebPortal::DEFAULT_CSS);
+    client->sendFileContent("/www/default.css");
     client->send("</style>");
 #endif
 
@@ -116,7 +113,7 @@ void WebPortal::handleIndex(HttpContext *context)
     client->send(WebPortal::WS_JS);
 #else
     client->send("<script>");
-    client->send(WebPortal::WS_JS);
+    client->sendFileContent("/www/ws.js");
     client->send("</script>");
 #endif
 
@@ -124,14 +121,12 @@ void WebPortal::handleIndex(HttpContext *context)
     // body
 
     // set theme
-    client->send(WebPortal::THEME_HTML_PART_1);
+    client->sendFileContent("/www/theme_part_1.html");
     client->send(this->options.pageTitle.c_str());
-    client->send(WebPortal::THEME_HTML_PART_2);
+    client->sendFileContent("/www/theme_part_2.html");
 
     // content
-    char *htmlContent = this->page->toString();
-    client->send(htmlContent);
-    delete[] htmlContent;
+    this->page->sendHtmlTo(client);
 
     // custom js
     if (this->options.customJs != NULL)
@@ -143,16 +138,14 @@ void WebPortal::handleIndex(HttpContext *context)
 
     // after load js
     client->send("<script>");
-    char *afterLoadJs = this->page->generateJsCode();
-    client->send(afterLoadJs);
-    delete[] afterLoadJs;
+    this->page->sendJsTo(client);
     client->send("</script>");
 
 #ifdef DYNAMIC_DEVELOPMENT
     client->send(WebPortal::THEME_JS);
 #else
     client->send("<script>");
-    client->send(WebPortal::THEME_JS);
+    client->sendFileContent("/www/theme.js");
     client->send("</script>");
 #endif
 
@@ -303,6 +296,7 @@ void WebPortal::setupOTA(String password, int port)
     ArduinoOTA.begin();
 }
 
-int WebPortal::getVersion(){
+int WebPortal::getVersion()
+{
     return 131;
 }

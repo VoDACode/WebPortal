@@ -1,6 +1,8 @@
 #pragma once
 #include <ESP8266WiFi.h>
 #include <map>
+#include "config.h"
+#include "LittleFS.h"
 
 class ResponseContext
 {
@@ -18,6 +20,7 @@ private:
 
     void sendHeader();
     void sendBody(const char *body);
+    void sendBodyFromFile(const char *filename);
 public:
     ResponseContext(WiFiClient *client);
     ~ResponseContext();
@@ -30,6 +33,9 @@ public:
     void send();
     void send(const char *body);
     void send(const char *body, int code);
+
+    void sendFileContent(const char *filename);
+    void sendFileContent(const char *filename, int code);
 
     void end();
     bool isEnded();

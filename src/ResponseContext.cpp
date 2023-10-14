@@ -47,6 +47,24 @@ void ResponseContext::send(const char *body, int code)
     }
 }
 
+void ResponseContext::sendFileContent(const char *filename)
+{
+    this->sendFileContent(filename, this->code);
+}
+
+void ResponseContext::sendFileContent(const char *filename, int code)
+{
+    if(step == 0){
+        this->setCode(code);
+        this->sendHeader();
+        this->sendBodyFromFile(filename);
+        step = 1;
+    }
+    else if(step == 1){
+        this->sendBodyFromFile(filename);
+    }
+}
+
 void ResponseContext::sendHeader()
 {
     this->client->print("HTTP/1.1 ");
@@ -84,6 +102,23 @@ void ResponseContext::sendHeader()
 void ResponseContext::sendBody(const char *body)
 {
     this->client->print(body);
+}
+
+void ResponseContext::sendBodyFromFile(const char *filename){
+    File file = LittleFS.open(filename, "r");
+    if(!file)
+    {
+        Serial.printf("File '%s' not found\n", filename);
+        return;
+    }
+    while(file.available()){
+        char buffer[FILE_READ_BUFFER_SIZE + 1] = {0};
+        int length = file.readBytes(buffer, FILE_READ_BUFFER_SIZE);
+        buffer[length] = '\0';
+        this->client->print(buffer);
+        yield();
+    }
+    file.close();
 }
 
 void ResponseContext::end()
