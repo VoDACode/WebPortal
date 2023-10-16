@@ -26,7 +26,7 @@ HtmlNode *buildPage();
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   webPortal.setPageTitle("Base example");
   webPortal.setTitle("WebPortal - Base example");
 
