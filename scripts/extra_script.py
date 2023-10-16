@@ -20,10 +20,10 @@ def uploadfs(source, target, env):
 
     if is_library:
         print("This is a project")
-        path_to_data = env.subst("$PROJECT_DIR") + os.sep + "data_src"
+        path_to_data = env.subst("$PROJECT_DIR") + os.sep + "src" + "data_src"
     else:
         print("This is a library")
-        path_to_data = env.subst("$PROJECT_LIBDEPS_DIR") + os.sep + env.subst("$PIOENV") + os.sep + PACKAGE_NAME + os.sep + "data_src"
+        path_to_data = env.subst("$PROJECT_LIBDEPS_DIR") + os.sep + env.subst("$PIOENV") + os.sep + PACKAGE_NAME + os.sep + "src" + os.sep + "data_src"
 
     path_to_data += os.sep + DATA_SRC_NAME   
     print("Path to data: " + path_to_data)
