@@ -11,6 +11,7 @@
 #define FILE_READ_BUFFER_SIZE 32
 #define FORMAT_SPIFFS_IF_FAILED true
 
-#define COMPONENTS_PATH "/www/components/"
+#define WEB_PORTAL_PATH "/__wp/"
+#define COMPONENTS_PATH "/__wp/c/"
 #define JS_EXT ".js"
 #define CSS_EXT ".css"

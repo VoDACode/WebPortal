@@ -7,3 +7,5 @@
 *.test.cpp
 
 dist
+
+/data

@@ -1,6 +1,6 @@
 {
     "name": "WebPortal",
-    "version": "1.3.5",
+    "version": "1.3.6",
     "description": "Library from easy create web portal for your project",
     "keywords": [
         "web",
@@ -31,5 +31,8 @@
     "frameworks": "arduino",
     "dependencies": [
         "boseji/rBase64@^1.1.1"
-    ]
+    ],
+    "build": {
+        "extraScript": "scripts/extra_script.py"
+    }
 }

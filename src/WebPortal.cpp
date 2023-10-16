@@ -84,7 +84,7 @@ void WebPortal::handleIndex(HttpContext *context)
     client->send(WebPortal::DEFAULT_CSS);
 #else
     client->send("<style>");
-    client->sendFileContent("/www/default.css");
+    client->sendFileContent((WEB_PORTAL_PATH + String("default.css")).c_str());
     client->send("</style>");
 #endif
 
@@ -113,7 +113,7 @@ void WebPortal::handleIndex(HttpContext *context)
     client->send(WebPortal::WS_JS);
 #else
     client->send("<script>");
-    client->sendFileContent("/www/ws.js");
+    client->sendFileContent((WEB_PORTAL_PATH + String("ws.js")).c_str());
     client->send("</script>");
 #endif
 
@@ -121,9 +121,9 @@ void WebPortal::handleIndex(HttpContext *context)
     // body
 
     // set theme
-    client->sendFileContent("/www/theme_part_1.html");
+    client->sendFileContent((WEB_PORTAL_PATH + String("theme_part_1.html")).c_str());
     client->send(this->options.pageTitle.c_str());
-    client->sendFileContent("/www/theme_part_2.html");
+    client->sendFileContent((WEB_PORTAL_PATH + String("theme_part_2.html")).c_str());
 
     // content
     this->page->sendHtmlTo(client);
@@ -145,7 +145,7 @@ void WebPortal::handleIndex(HttpContext *context)
     client->send(WebPortal::THEME_JS);
 #else
     client->send("<script>");
-    client->sendFileContent("/www/theme.js");
+    client->sendFileContent((WEB_PORTAL_PATH + String("theme.js")).c_str());
     client->send("</script>");
 #endif
 
